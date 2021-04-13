@@ -1,0 +1,263 @@
+Loaded module: clang/9.0.0
+Loaded module: studio/12u6
+N size = 40, Threads = 2
+Start - Gauss Seidel:
+Iterations 814 - Difference: 0.099857 - Threshold: 0.100000
+Done!
+real 0.20
+user 0.35
+sys 0.00
+N size = 40, Threads = 4
+Start - Gauss Seidel:
+Iterations 814 - Difference: 0.099809 - Threshold: 0.100000
+Done!
+real 0.10
+user 0.40
+sys 0.00
+N size = 40, Threads = 8
+Start - Gauss Seidel:
+Iterations 814 - Difference: 0.099741 - Threshold: 0.100000
+Done!
+real 0.06
+user 0.44
+sys 0.01
+N size = 40, Threads = 12
+Start - Gauss Seidel:
+Iterations 814 - Difference: 0.099550 - Threshold: 0.100000
+Done!
+real 0.06
+user 0.65
+sys 0.01
+N size = 40, Threads = 16
+Start - Gauss Seidel:
+Iterations 814 - Difference: 0.099558 - Threshold: 0.100000
+Done!
+real 0.05
+user 0.71
+sys 0.01
+N size = 40, Threads = 20
+Start - Gauss Seidel:
+Iterations 814 - Difference: 0.099981 - Threshold: 0.100000
+Done!
+real 0.05
+user 0.81
+sys 0.03
+N size = 80, Threads = 2
+Start - Gauss Seidel:
+Iterations 3114 - Difference: 0.099862 - Threshold: 0.100000
+Done!
+real 6.23
+user 12.43
+sys 0.01
+N size = 80, Threads = 4
+Start - Gauss Seidel:
+Iterations 3114 - Difference: 0.099856 - Threshold: 0.100000
+Done!
+real 3.25
+user 12.95
+sys 0.03
+N size = 80, Threads = 8
+Start - Gauss Seidel:
+Iterations 3114 - Difference: 0.099847 - Threshold: 0.100000
+Done!
+real 1.68
+user 13.35
+sys 0.07
+N size = 80, Threads = 12
+Start - Gauss Seidel:
+Iterations 3113 - Difference: 0.099987 - Threshold: 0.100000
+Done!
+real 1.19
+user 13.99
+sys 0.12
+N size = 80, Threads = 16
+Start - Gauss Seidel:
+Iterations 3113 - Difference: 0.099981 - Threshold: 0.100000
+Done!
+real 0.95
+user 14.81
+sys 0.13
+N size = 80, Threads = 20
+Start - Gauss Seidel:
+Iterations 3114 - Difference: 0.099850 - Threshold: 0.100000
+Done!
+real 0.85
+user 16.31
+sys 0.23
+N size = 120, Threads = 2
+Start - Gauss Seidel:
+Iterations 6767 - Difference: 0.099948 - Threshold: 0.100000
+Done!
+real 47.37
+user 94.71
+sys 0.02
+N size = 120, Threads = 4
+Start - Gauss Seidel:
+Iterations 6767 - Difference: 0.099946 - Threshold: 0.100000
+Done!
+real 24.48
+user 97.64
+sys 0.22
+N size = 120, Threads = 8
+Start - Gauss Seidel:
+Iterations 6767 - Difference: 0.099943 - Threshold: 0.100000
+Done!
+real 12.47
+user 99.34
+sys 0.31
+N size = 120, Threads = 12
+Start - Gauss Seidel:
+Iterations 6767 - Difference: 0.099941 - Threshold: 0.100000
+Done!
+real 8.51
+user 101.36
+sys 0.61
+N size = 120, Threads = 16
+Start - Gauss Seidel:
+Iterations 6767 - Difference: 0.099931 - Threshold: 0.100000
+Done!
+real 6.78
+user 107.03
+sys 1.19
+N size = 120, Threads = 20
+Start - Gauss Seidel:
+Iterations 6767 - Difference: 0.099937 - Threshold: 0.100000
+Done!
+real 5.39
+user 106.64
+sys 0.89
+N size = 160, Threads = 2
+Start - Gauss Seidel:
+Iterations 11706 - Difference: 0.099993 - Threshold: 0.100000
+Done!
+real 197.56
+user 395.03
+sys 0.06
+N size = 160, Threads = 4
+Start - Gauss Seidel:
+Iterations 11706 - Difference: 0.099992 - Threshold: 0.100000
+Done!
+real 100.56
+user 401.68
+sys 0.50
+N size = 160, Threads = 8
+Start - Gauss Seidel:
+Iterations 11706 - Difference: 0.099991 - Threshold: 0.100000
+Done!
+real 50.36
+user 402.15
+sys 0.59
+N size = 160, Threads = 12
+Start - Gauss Seidel:
+Iterations 11706 - Difference: 0.099990 - Threshold: 0.100000
+Done!
+real 35.05
+user 418.37
+sys 1.94
+N size = 160, Threads = 16
+Start - Gauss Seidel:
+Iterations 11706 - Difference: 0.099989 - Threshold: 0.100000
+Done!
+real 25.66
+user 409.10
+sys 1.12
+N size = 160, Threads = 20
+Start - Gauss Seidel:
+Iterations 11706 - Difference: 0.099988 - Threshold: 0.100000
+Done!
+real 21.04
+user 418.57
+sys 1.79
+N size = 200, Threads = 2
+Start - Gauss Seidel:
+Iterations 17884 - Difference: 0.099993 - Threshold: 0.100000
+Done!
+real 597.55
+user 1194.85
+sys 0.20
+N size = 200, Threads = 4
+Start - Gauss Seidel:
+Iterations 17884 - Difference: 0.099992 - Threshold: 0.100000
+Done!
+real 302.63
+user 1209.16
+sys 1.24
+N size = 200, Threads = 8
+Start - Gauss Seidel:
+Iterations 17884 - Difference: 0.099992 - Threshold: 0.100000
+Done!
+real 152.54
+user 1218.18
+sys 1.80
+N size = 200, Threads = 12
+Start - Gauss Seidel:
+Iterations 17884 - Difference: 0.099991 - Threshold: 0.100000
+Done!
+real 104.42
+user 1247.73
+sys 4.78
+N size = 200, Threads = 16
+Start - Gauss Seidel:
+Iterations 17884 - Difference: 0.099989 - Threshold: 0.100000
+Done!
+real 80.51
+user 1281.33
+sys 6.18
+N size = 200, Threads = 20
+Start - Gauss Seidel:
+Iterations 17884 - Difference: 0.099990 - Threshold: 0.100000
+Done!
+real 63.50
+user 1265.04
+sys 4.14
+
+------------------------------------------------------------
+Sender: LSF System <lsfadmin@n-62-21-42>
+Subject: Job 5111963: <gauss-test> in cluster <dcc> Done
+
+Job <gauss-test> was submitted from host <n-62-30-5> by user <s153587> in cluster <dcc> at Fri Jan 17 16:10:55 2020
+Job was executed on host(s) <24*n-62-21-42>, in queue <hpcintro>, as user <s153587> in cluster <dcc> at Fri Jan 17 16:50:48 2020
+</zhome/76/0/108672> was used as the home directory.
+</zhome/76/0/108672/HPC_kursus/git/HPC2020/Assignments/Assignment02/Poisson3D_version_final> was used as the working directory.
+Started at Fri Jan 17 16:50:48 2020
+Terminated at Fri Jan 17 17:21:40 2020
+Results reported at Fri Jan 17 17:21:40 2020
+
+Your job looked like:
+
+------------------------------------------------------------
+# LSBATCH: User input
+#!/bin/bash
+
+#BSUB -J gauss-test
+#BSUB -o output_gs/gs_%J.out
+#BSUB -q hpcintro
+#BSUB -n 24
+#BSUB -R "rusage[mem=2048]"
+#BSUB -R "span[hosts=1]"
+#BSUB -W 01:00
+module load clang/9.0.0
+module load studio
+
+./runbatch_gs.sh
+
+
+------------------------------------------------------------
+
+Successfully completed.
+
+Resource usage summary:
+
+    CPU time :                                   10585.88 sec.
+    Max Memory :                                 131 MB
+    Average Memory :                             106.73 MB
+    Total Requested Memory :                     49152.00 MB
+    Delta Memory :                               49021.00 MB
+    Max Swap :                                   -
+    Max Processes :                              6
+    Max Threads :                                26
+    Run time :                                   1852 sec.
+    Turnaround time :                            4245 sec.
+
+The output (if any) is above this job summary.
+

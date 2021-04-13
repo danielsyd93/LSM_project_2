@@ -1,0 +1,128 @@
+Loaded module: studio/12u6
+Loaded module: clang/9.0.0
+N size = 40
+Start - Jacobi:
+Iterations 1410 - Difference: 0.099897 - Threshold: 0.100000
+Done!
+real 0.35
+user 0.34
+sys 0.00
+N size = 80
+Start - Jacobi:
+Iterations 5342 - Difference: 0.099977 - Threshold: 0.100000
+Done!
+real 10.93
+user 10.92
+sys 0.01
+N size = 120
+Start - Jacobi:
+Iterations 11532 - Difference: 0.099995 - Threshold: 0.100000
+Done!
+real 83.38
+user 83.36
+sys 0.01
+N size = 160
+Start - Jacobi:
+Iterations 19846 - Difference: 0.099991 - Threshold: 0.100000
+Done!
+real 353.94
+user 353.86
+sys 0.07
+N size = 200
+Start - Jacobi:
+Iterations 30187 - Difference: 0.099993 - Threshold: 0.100000
+Done!
+real 1050.43
+user 1050.32
+sys 0.12
+./runbatch_j_t1.sh: line 36: syntax error near unexpected token `done'
+./runbatch_j_t1.sh: line 36: `done'
+N size = 40
+Start - Gauss Seidel:
+Iterations 814 - Difference: 0.099876 - Threshold: 0.100000
+Done!
+real 0.36
+user 0.35
+sys 0.00
+N size = 80
+Start - Gauss Seidel:
+Iterations 3114 - Difference: 0.099864 - Threshold: 0.100000
+Done!
+real 12.33
+user 12.31
+sys 0.01
+N size = 120
+Start - Gauss Seidel:
+Iterations 6767 - Difference: 0.099948 - Threshold: 0.100000
+Done!
+real 94.07
+user 94.04
+sys 0.02
+N size = 160
+Start - Gauss Seidel:
+Iterations 11706 - Difference: 0.099993 - Threshold: 0.100000
+Done!
+real 396.87
+user 396.79
+sys 0.08
+N size = 200
+Start - Gauss Seidel:
+Iterations 17884 - Difference: 0.099993 - Threshold: 0.100000
+Done!
+real 1191.99
+user 1191.92
+sys 0.09
+./runbatch_gs_t1.sh: line 36: syntax error near unexpected token `done'
+./runbatch_gs_t1.sh: line 36: `done'
+
+------------------------------------------------------------
+Sender: LSF System <lsfadmin@n-62-21-30>
+Subject: Job 5111959: <t1-test> in cluster <dcc> Exited
+
+Job <t1-test> was submitted from host <n-62-30-5> by user <s153587> in cluster <dcc> at Fri Jan 17 16:10:45 2020
+Job was executed on host(s) <24*n-62-21-30>, in queue <hpcintro>, as user <s153587> in cluster <dcc> at Fri Jan 17 16:34:49 2020
+</zhome/76/0/108672> was used as the home directory.
+</zhome/76/0/108672/HPC_kursus/git/HPC2020/Assignments/Assignment02/Poisson3D_version_final> was used as the working directory.
+Started at Fri Jan 17 16:34:49 2020
+Terminated at Fri Jan 17 17:28:05 2020
+Results reported at Fri Jan 17 17:28:05 2020
+
+Your job looked like:
+
+------------------------------------------------------------
+# LSBATCH: User input
+#!/bin/bash
+
+#BSUB -J t1-test
+#BSUB -o output_t1/t1_%J.out
+#BSUB -q hpcintro
+#BSUB -n 24
+#BSUB -R "span[hosts=1]"
+#BSUB -R "rusage[mem=2048]"
+#BSUB -W 01:00
+
+module load studio
+module load clang/9.0.0
+
+./runbatch_j_t1.sh
+./runbatch_gs_t1.sh
+
+------------------------------------------------------------
+
+Exited with exit code 2.
+
+Resource usage summary:
+
+    CPU time :                                   3197.63 sec.
+    Max Memory :                                 188 MB
+    Average Memory :                             127.64 MB
+    Total Requested Memory :                     49152.00 MB
+    Delta Memory :                               48964.00 MB
+    Max Swap :                                   -
+    Max Processes :                              6
+    Max Threads :                                7
+    Run time :                                   3195 sec.
+    Turnaround time :                            4640 sec.
+
+The output (if any) is above this job summary.
+
