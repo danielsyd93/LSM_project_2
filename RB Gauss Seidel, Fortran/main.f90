@@ -530,7 +530,7 @@ program main
 
   ! Allocating u
   allocate(uloc(N/l+2,N/c+2,N/r+2))
-  allocate(uoldloc(N/l+2,N/c+2,N/r+2))
+  
   
   ! Applying boundary conditions
     ! u(:,:,:) = 0
@@ -547,20 +547,22 @@ program main
   call ApplyBC(2,N,20,coords,irank,uloc,cart_comm)
     ! u(:,N,:) = 20
   call ApplyBC(1,N,0,coords,irank,uloc,cart_comm)
-  
-   uoldloc(:,:,:) = 0
-    ! u(1,:,:) = 0
-  call ApplyBC(0,0,20,coords,irank,uoldloc,cart_comm)
-    ! u(N,:,:) = 0
-  call ApplyBC(0,N,20,coords,irank,uoldloc,cart_comm)
-    ! u(:,1,:) = 0
-  call ApplyBC(1,0,20,coords,irank,uoldloc,cart_comm)
-    ! u(:,:,1) = 0
-  call ApplyBC(2,0,20,coords,irank,uoldloc,cart_comm)
-    ! u(:,:,N) = 0
-  call ApplyBC(2,N,20,coords,irank,uoldloc,cart_comm)
-    ! u(:,N,:) = 20
-  call ApplyBC(1,N,0,coords,irank,uoldloc,cart_comm)
+  if (algo==1)
+    allocate(uoldloc(N/l+2,N/c+2,N/r+2))
+    uoldloc(:,:,:) = 0
+      ! u(1,:,:) = 0
+    call ApplyBC(0,0,20,coords,irank,uoldloc,cart_comm)
+      ! u(N,:,:) = 0
+    call ApplyBC(0,N,20,coords,irank,uoldloc,cart_comm)
+      ! u(:,1,:) = 0
+    call ApplyBC(1,0,20,coords,irank,uoldloc,cart_comm)
+      ! u(:,:,1) = 0
+    call ApplyBC(2,0,20,coords,irank,uoldloc,cart_comm)
+      ! u(:,:,N) = 0
+    call ApplyBC(2,N,20,coords,irank,uoldloc,cart_comm)
+      ! u(:,N,:) = 20
+    call ApplyBC(1,N,0,coords,irank,uoldloc,cart_comm)
+  end fi
 
   !Defining Delta (2 is to define the 2 meters of box length):
   Delta = 2._dp/(N-1._dp)
