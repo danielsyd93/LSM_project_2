@@ -241,9 +241,9 @@ real(dp), dimension(:,:,:) :: temp
 do i = 2,size(u,1)-1
     do j = 2,size(u,2)-1
       do k = 2,size(u,3)-1
-        u_old(i,j,k) =(u(i-1,j,k)+u(i+1,j,k)&!X-direction
-                  +u(i,j-1,k)+u(i,j+1,k)&!Y-direction
-                  +u(i,j,k-1)+u(i,j,k+1)&!Z-direction
+        u(i,j,k) =(u_old(i-1,j,k)+u_old(i+1,j,k)&!X-direction
+                  +u_old(i,j-1,k)+u_old(i,j+1,k)&!Y-direction
+                  +u_old(i,j,k-1)+u_old(i,j,k+1)&!Z-direction
                   +delta**2._dp*evalRadiator(i,j,k,N_loc,coords,N)&
                    )/6._dp
       end do
@@ -251,9 +251,9 @@ do i = 2,size(u,1)-1
   end do
 
 
-temp=u_old
-u_old=u
-u=temp
+
+u_old(:,:,:)=u(:,:,:)
+
 call updateComm(u,irank,comm)
 end subroutine Jacobi
 
