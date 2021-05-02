@@ -227,20 +227,20 @@ contains
   
 ! ------------------------------------------------------------------------ !
 
-subroutine Jacobi(u,u_old,coords,irank,N)
+subroutine Jacobi(u,u_old,delta,coords,comm,irank,N)
 real(dp), dimension(:,:,:), intent(inout) :: u
 real(dp), dimension(:,:,:), intent(inout) :: u_old
 integer,  intent(in) :: comm,irank,coords(3),N
-real(dp), intent(in) :: Delta
+real(dp), intent(in) :: delta
 
 integer :: i,j,k
 integer :: N_loc
 integer :: ierr
-real(dp) :: temp
+real(dp), dimension(:,:,:) :: temp
 
 do i = 2,size(u,1)-1
     do j = 2,size(u,2)-1
-      do k = 2+mod(i+j,2),size(u,3)-1,2
+      do k = 2,size(u,3)-1
         u_old(i,j,k) =(u(i-1,j,k)+u(i+1,j,k)&!X-direction
                   +u(i,j-1,k)+u(i,j+1,k)&!Y-direction
                   +u(i,j,k-1)+u(i,j,k+1)&!Z-direction
@@ -251,10 +251,10 @@ do i = 2,size(u,1)-1
   end do
 
 
-temp=u
-u=u_old
-u_old=temp
-
+temp=u_old
+u_old=u
+u=temp
+call updateComm(u,irank,comm)
 end subroutine Jacobi
 
 ! ------------------------------------------------------------------------ !
@@ -442,6 +442,7 @@ program main
 
   ! field variables  
   real(dp), allocatable, dimension(:,:,:) :: uloc
+  real(dp), allocatable, dimension(:,:,:) :: uoldloc
   real(dp) :: Delta
 
   ! MPI Variables
@@ -529,6 +530,7 @@ program main
 
   ! Allocating u
   allocate(uloc(N/l+2,N/c+2,N/r+2))
+  allocate(uoldloc(N/l+2,N/c+2,N/r+2))
   
   ! Applying boundary conditions
     ! u(:,:,:) = 0
@@ -545,6 +547,20 @@ program main
   call ApplyBC(2,N,20,coords,irank,uloc,cart_comm)
     ! u(:,N,:) = 20
   call ApplyBC(1,N,0,coords,irank,uloc,cart_comm)
+  
+   uoldloc(:,:,:) = 0
+    ! u(1,:,:) = 0
+  call ApplyBC(0,0,20,coords,irank,uoldloc,cart_comm)
+    ! u(N,:,:) = 0
+  call ApplyBC(0,N,20,coords,irank,uoldloc,cart_comm)
+    ! u(:,1,:) = 0
+  call ApplyBC(1,0,20,coords,irank,uoldloc,cart_comm)
+    ! u(:,:,1) = 0
+  call ApplyBC(2,0,20,coords,irank,uoldloc,cart_comm)
+    ! u(:,:,N) = 0
+  call ApplyBC(2,N,20,coords,irank,uoldloc,cart_comm)
+    ! u(:,N,:) = 20
+  call ApplyBC(1,N,0,coords,irank,uoldloc,cart_comm)
 
   !Defining Delta (2 is to define the 2 meters of box length):
   Delta = 2._dp/(N-1._dp)
@@ -555,6 +571,8 @@ program main
     case(0)
       ! Calling the Gauss Seidel routine:
       call Gauss_Seidel_redblack(uloc,cart_comm,Delta,irank,coords,N+2)
+    case(1)
+      call Jacobi(uloc,uoldloc,Delta,coords,cart_comm,irank,N+2)     
     case default
       write(*,'(A,I0)') 'Unknown algorithm?? = ',algo
     end select
@@ -585,5 +603,6 @@ program main
   !call vtk_u_global(uloc,coords,irank,isize,cart_comm)
   
   deallocate(uloc)
+  deallocate(uoldloc)
   CALL MPI_Finalize(ierr)
 end program main
