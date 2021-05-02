@@ -120,12 +120,7 @@ contains
         ! Recieve local temp field
         call MPI_RECV(uloc_r, size(uloc), MPI_DOUBLE_PRECISION, i, 2, &
                       comm, stat, ierr)
-        !if (i == 1) then
-        !print*,cr
-        !print*,si,sj,sk
-        !print*,cr(1)*(si)+2,(cr(1)+1)*(si)+1
-        !print*,cr(2)*(sj)+2,(cr(2)+1)*(sj)+1
-        !print*,cr(3)*(sk)+2,(cr(3)+1)*(sk)+1
+
         ! Inserting the the recieved mat into the global temp field
         u_glob(cr(1)*(si)+2:(cr(1)+1)*(si)+1,&
                cr(2)*(sj)+2:(cr(2)+1)*(sj)+1,&
@@ -135,7 +130,7 @@ contains
       end do   
 
       ! Prints the global heat field to terminal  
-      call printmat(u_glob,'Global heat field')
+      !call printmat(u_glob,'Global heat field')
 
       ! finally creating a VTK file:
       call write_vtk(u_glob)
@@ -185,9 +180,9 @@ contains
 
 ! -------------------------------------------------------------------------!
 
-  subroutine Gauss_Seidel_redblack(u,comm,delta,irank,coords)
+  subroutine Gauss_Seidel_redblack(u,comm,delta,irank,coords,N)
   real(dp), dimension(:,:,:), intent(inout) :: u
-  integer,  intent(in) :: comm,irank,coords(3)
+  integer,  intent(in) :: comm,irank,coords(3),N
   real(dp), intent(in) :: Delta
   
   integer :: i,j,k
@@ -204,7 +199,7 @@ contains
         u(i,j,k) =(u(i-1,j,k)+u(i+1,j,k)&!X-direction
                   +u(i,j-1,k)+u(i,j+1,k)&!Y-direction
                   +u(i,j,k-1)+u(i,j,k+1)&!Z-direction
-                  +delta**2._dp*evalRadiator(i,j,k,N_loc,delta,coords)&
+                  +delta**2._dp*evalRadiator(i,j,k,N_loc,coords,N)&
                    )/6._dp
       end do
     end do
@@ -220,7 +215,7 @@ contains
         u(i,j,k) =(u(i-1,j,k)+u(i+1,j,k)&!X-direction
                   +u(i,j-1,k)+u(i,j+1,k)&!Y-direction
                   +u(i,j,k-1)+u(i,j,k+1)&!Z-direction
-                  +delta**2._dp*evalRadiator(i,j,k,N_loc,delta,coords)&
+                  +delta**2._dp*evalRadiator(i,j,k,N_loc,coords,N)&
                    )/6._dp
       end do
     end do
@@ -232,18 +227,17 @@ contains
   
 ! ------------------------------------------------------------------------ !
 
-  real(dp) function evalRadiator(i,j,k,N_loc,delta,coords)
-    integer,  intent(in) :: i,j,k,N_loc,coords(3)
-    real(dp), intent(in) :: delta
+  real(dp) function evalRadiator(i,j,k,N_loc,coords,N)
+    integer,  intent(in) :: i,j,k,N_loc,coords(3),N
     real(dp) :: x,y,z
 
-    x = i*delta+(N_loc-2)*delta*coords(1)
-    y = j*delta+(N_loc-2)*delta*coords(2)
-    z = k*delta+(N_loc-2)*delta*coords(3)
+    x = (i+N_loc*coords(1)+1._dp)/N
+    y = (j+N_loc*coords(2)+1._dp)/N
+    z = (k+N_loc*coords(3)+1._dp)/N
 
-    if (-1._dp <= x .and. x <= -3._dp/8._dp .and. &
-        -1._dp <= y .and. y <= -1._dp/2._dp .and. &
-      -2._dp/3._dp <= z .and. z <= 0._dp) then
+    if (0._dp <= x .and. x <= 5._dp/16._dp .and. &
+  3._dp/4._dp <= y .and. y <= 1._dp        .and. &
+  1._dp/6._dp <= z .and. z <= 1._dp/2._dp) then
       evalRadiator = 200._dp !C/m^2
     else
       evalRadiator = 0._dp   !C/m^2
@@ -258,115 +252,131 @@ contains
   integer, intent(in) :: irank,comm
 
   real(dp), dimension(:,:,:), allocatable :: sBuff,rBuff
-  integer :: rank_prev, rank_next
-  integer :: i,j,k
-  integer :: req(12),stats(MPI_STATUS_SIZE,12),ierr,errc
+  integer :: rp, rn ! rank prev. and rank next
+  integer :: NumNe ! number of neigbors
+  integer :: l1,lend
+  integer :: i,j,k,c
+
+  integer :: ierr,errc
+  integer, dimension(:),   allocatable :: sreq,rreq
+  integer, dimension(:,:), allocatable :: sstats,rstats
+
+  ! Number of Neighbors:
+  NumNe = 0
+  
+  ! Getting number of neighbors:
+  do i = 1,3
+    call MPI_Cart_shift(comm, i-1, 1, rp, rn, ierr)
+
+    if (rp .ne. MPI_PROC_NULL) NumNe = NumNe + 1
+
+    if (rn .ne. MPI_PROC_NULL) NumNe = NumNe + 1
+  end do
 
   ! Allocating the buffer for the communication:
-  allocate(sBuff(size(u,1),size(u,2),6),rBuff(size(u,1),size(u,2),6))
+  allocate(sBuff(size(u,1),size(u,2),NumNe),&
+           rBuff(size(u,1),size(u,2),NumNe))
 
-  call mpi_barrier(comm,ierr)
-  if (irank == 1) then
-    call printmat(u,'uloc for irank == 1')
-  end if
-  
+  ! Allocating the requests
+  allocate(rreq(NumNe),sreq(NumNe))  
 
-  ! Send the calculated points:
+  ! Allocating the statuses
+  allocate(sstats(MPI_STATUS_SIZE,NumNe),rstats(MPI_STATUS_SIZE,NumNe))
+
+  ! Now the buffers are filled
+  c = 0 ! Counter for the neigbors 
   do i = 1,3
-    call MPI_Cart_shift(comm, i-1, 1, rank_prev, rank_next, ierr)
-    
-    
-    ! ---------------------------- SENDING ------------------------------- !  
-
+    call MPI_Cart_shift(comm, i-1, 1, rp, rn, ierr)
     ! Saving Rank_prev into buffer
-    if (rank_prev .NE. MPI_PROC_NULL) then
+    if (rp .NE. MPI_PROC_NULL) then
+      c = c + 1
+
       if     (i == 1) then      
-        sBuff(:,:,i) = u(2,:,:)
+        sBuff(:,:,c) = u(2,:,:)
       elseif (i == 2) then
-        sBuff(:,:,i) = u(:,2,:)
+        sBuff(:,:,c) = u(:,2,:)
       elseif (i == 3) then
-        sBuff(:,:,i) = u(:,:,2)
+        sBuff(:,:,c) = u(:,:,2)
       end if
 
       ! Sending the data:
-      call Mpi_Isend(sBuff(:,:,i), size(u,1)**2, MPI_DOUBLE_PRECISION, &
-                     rank_prev, 0, comm, req(i), ierr)
-    else 
-      req(i) = MPI_REQUEST_NULL
+      call Mpi_Isend(sBuff(:,:,c), size(u,1)**2, MPI_DOUBLE_PRECISION, &
+                     rp, 0, comm, sreq(c), ierr)
+
+      ! Recieving the data:
+      call Mpi_Irecv(rBuff(:,:,c), size(u,1)**2, MPI_DOUBLE_PRECISION, &
+                     rp, 1, comm, rreq(c), ierr)
     end if
     
     ! Saving Rank_next into buffer
-    if (rank_next .NE. MPI_PROC_NULL) then
+    if (rn .NE. MPI_PROC_NULL) then
+      c = c + 1
+
       if     (i == 1) then      
-        sBuff(:,:,i+3) = u(size(u,1)-1,:,:)
+        sBuff(:,:,c) = u(size(u,1)-1,:,:)
       elseif (i == 2) then
-        sBuff(:,:,i+3) = u(:,size(u,2)-1,:)
+        sBuff(:,:,c) = u(:,size(u,2)-1,:)
       elseif (i == 3) then
-        sBuff(:,:,i+3) = u(:,:,size(u,3)-1)
+        sBuff(:,:,c) = u(:,:,size(u,3)-1)
       end if
       ! Sending the data:
-      call Mpi_Isend(sBuff(:,:,i+3), size(u,1)**2, MPI_DOUBLE_PRECISION, &
-                     rank_next, 1, comm, req(i+3), ierr)
-    else 
-      req(i+3) = MPI_REQUEST_NULL
-    end if
-    
-    ! --------------------------- RECIEVING ------------------------------ !  
+      call Mpi_Isend(sBuff(:,:,c), size(u,1)**2, MPI_DOUBLE_PRECISION, &
+                     rn, 1, comm, sreq(c), ierr)
 
-    ! Recieving Rank_prev into u
-    if (rank_prev .NE. MPI_PROC_NULL) then
-      call Mpi_Irecv(rBuff(:,:,i), size(u,1)**2, MPI_DOUBLE_PRECISION, &
-                     rank_prev, 1, comm, req(i+6), ierr)
-    else 
-      req(i+6) = MPI_REQUEST_NULL
-    end if
-    
-    ! Saving Rank_next into buffer
-    if (rank_next .NE. MPI_PROC_NULL) then
-      call Mpi_Irecv(rBuff(:,:,i+3), size(u,1)**2, MPI_DOUBLE_PRECISION, &
-                     rank_prev, 1, comm, req(i+9), ierr)
-    else 
-      req(i+9) = MPI_REQUEST_NULL
+      ! Recieving the data:
+      call Mpi_Irecv(rBuff(:,:,c), size(u,1)**2, MPI_DOUBLE_PRECISION, &
+                     rn, 0, comm, rreq(c), ierr)
     end if
   end do
 
+  ! Waiting for all messages to be sent
+  call Mpi_Waitall(c, sreq, sstats, ierr)
 
   ! Waiting for all messages to be recieved
-  call Mpi_Waitall(12, req, stats, ierr)
+  call Mpi_Waitall(c, rreq, rstats, ierr)
 
-  ! Once data is recieved are the information inserted into the array.
+  ! Back inserting the step:
+  c = 0
   do i = 1,3
-    call MPI_Cart_shift(comm, i-1, 1, rank_prev, rank_next, ierr)
+    call MPI_Cart_shift(comm, i-1, 1, rp, rn, ierr)
     
-    if (rank_prev .NE. MPI_PROC_NULL) then
+    if (rp .NE. MPI_PROC_NULL) then
+      c = c + 1
       if     (i == 1) then      
-        u(1,:,:) = rBuff(:,:,i)
+        u(1,:,:) = rBuff(:,:,c)
       elseif (i == 2) then
-        u(:,1,:) = rBuff(:,:,i)
+        u(:,1,:) = rBuff(:,:,c)
       elseif (i == 3) then
-        u(:,:,1) = rBuff(:,:,i)
+        u(:,:,1) = rBuff(:,:,c)
       end if
     end if
     
-    if (rank_next .NE. MPI_PROC_NULL) then
+    if (rn .NE. MPI_PROC_NULL) then
+      c = c + 1
       if     (i == 1) then      
-        u(size(u,1),:,:) = rBuff(:,:,i+3)
+        u(size(u,1),:,:) = rBuff(:,:,c)
       elseif (i == 2) then
-        u(:,size(u,2),:) = rBuff(:,:,i+3)
+        u(:,size(u,2),:) = rBuff(:,:,c)
       elseif (i == 3) then
-        u(:,:,size(u,3)) = rBuff(:,:,i+3)
+        u(:,:,size(u,3)) = rBuff(:,:,c)
       end if
     end if
 
   end do
 
-  call mpi_barrier(comm,ierr)
-  if (irank == 1) then
-    call printmat(u,'uloc for irank == 1, after!')
-    call MPI_abort(comm,errc,ierr)
+  end subroutine updateComm
+  
+  subroutine assert(condition,string,flag)
+  logical, intent(in)      :: condition
+  character(*), intent(in) :: string
+  integer, intent(out)     :: flag
+
+  if (condition) then
+    print*, string
+    flag = 1
   end if
 
-  end subroutine updateComm
+  end subroutine assert
 end module routines
 
 ! ------------------------------------------------------------------------ !
@@ -381,20 +391,30 @@ program main
   
   implicit none
 
-  integer :: N = 8 ! side length of matrix
-  integer :: P = 8 ! total nr. of workers
-  integer :: c = 2 ! collumn
-  integer :: r = 2 ! row
-  integer :: l = 2 ! layer
+  ! Inputs:
+  integer :: N! = 64 ! side length of matrix
+  integer :: P! = 8 ! total nr. of workers
+  integer :: c! = 2 ! collumn
+  integer :: r! = 2 ! row
+  integer :: l! = 2 ! layer
+  integer :: algo ! selects the algorithm used.
 
-  integer :: i
+  ! Arguments from cmd
+  integer :: nargs, iargs(6)
+  character(len=64) :: line
+
+  ! File variables
+  character(125) :: filename
+
+  ! etc.
+  integer :: i, flag = 0
 
   ! field variables  
   real(dp), allocatable, dimension(:,:,:) :: uloc
   real(dp) :: Delta
 
   ! MPI Variables
-  integer :: isize,irank,ierr
+  integer :: isize,irank,ierr,errc
 
   ! Cartesian
   integer cart_comm, ndims
@@ -402,18 +422,66 @@ program main
   logical periods(3), reorder
   integer coords(3)
 
+  ! timing
+  real(dp) t1, t2
+  real(dp), dimension(:), allocatable :: times
+
   CALL MPI_Init(ierr)
   CALL MPI_Comm_size(MPI_COMM_WORLD, isize,ierr)
   CALL MPI_Comm_rank(MPI_COMM_WORLD, irank,ierr)
 
-  if (irank == 0) then
-    if (.not. p==(r*c*l))  print*, 'ERROR this should hold: p==(r*c*l)'
-    if (.not. p==isize)    print*, 'ERROR this should hold: p==isize'
-    if (.not. mod(N,p)==0) print*, 'ERROR this should hold: mod(N,p)==0'
-    if (.not. mod(N,c)==0) print*, 'ERROR this should hold: mod(N,c)==0'
-    if (.not. mod(N,r)==0) print*, 'ERROR this should hold: mod(N,r)==0'    
-    if (.not. mod(N,l)==0) print*, 'ERROR this should hold: mod(N,r)==0'
+  ! Defining inputs:
+  nargs = command_argument_count()
+  if ( nargs < 6 ) then
+    call MPI_Finalize(ierr)
+    write(*,'(a,i0)') 'Expected 6 arguments, only got ', nargs
+    write(*,'(a)') "     N  np_r np_c np_l <algo>"
+  else
+    do nargs = 1, 6
+      line = ' '
+      call get_command_argument(nargs, line, ierr)
+      read(line, *) iargs(nargs)
+    end do
   end if
+
+  ! Distribute arguments
+  call MPI_Bcast(iargs, 6, MPI_Integer, 0, MPI_COMM_WORLD, ierr)
+
+  N = iargs(1); P = iargs(2); r = iargs(3); c = iargs(4); l = iargs(5);
+  algo = iargs(6);  
+
+  call MPI_barrier(MPI_COMM_WORLD,ierr)
+
+  ! Printout the setup:
+  if (irank == 0) then
+    write(*,'(7(a,i0),a)') "project: algo[", algo, &
+            "] ranks=", isize, " N=", N, " Prc(",r,',',c,',',l,")"
+
+     write(filename,'(6(a,i0),a)') 'HPCdata/N',N,'_P',P,'_px',r,'_py',c,&
+                                   '_pz',l,'_algo',algo,'.dat'
+
+    open(420,file=filename,status="new")
+    write(420,'(7(a,i0),a)') "project: algo[", algo, &
+              "] ranks=", isize, " matrix=", N, " Prc(",r,',',c,',',l,")"
+  end if
+
+  ! check that the correct conditions are given.
+  if (irank == 0) then
+    call assert((.not. p==(r*c*l)), 'ERROR this should hold: p==(r*c*l)' ,flag)
+    call assert((.not. p==isize),   'ERROR this should hold: p==isize'   ,flag)
+    call assert((.not. mod(N,p)==0),'ERROR this should hold: mod(N,p)==0',flag)
+    call assert((.not. mod(N,c)==0),'ERROR this should hold: mod(N,c)==0',flag)
+    call assert((.not. mod(N,r)==0),'ERROR this should hold: mod(N,r)==0',flag)
+    call assert((.not. mod(N,l)==0),'ERROR this should hold: mod(N,r)==0',flag)
+    if (flag == 1) then
+      write(*,*) 'An error occoured in the assesment of the settings!'
+      write(420,*) 'An error occoured in the assesment of the settings!'
+      call MPI_abort(MPI_COMM_WORLD,errc,ierr)
+      stop
+    end if
+  end if
+
+  
 
   ! First a Cartesian grid is generated:
   ndims = 3
@@ -450,15 +518,41 @@ program main
   !Defining Delta (2 is to define the 2 meters of box length):
   Delta = 2._dp/(N-1._dp)
 
-  !do i = 1,1000
-    ! Calling the Gauss Seidel routine:
-    call Gauss_Seidel_redblack(uloc,cart_comm,Delta,irank,coords)
-  !end do
+  t1 = MPI_Wtime()
+  do i = 1,1000
+    select case (algo)
+    case(0)
+      ! Calling the Gauss Seidel routine:
+      call Gauss_Seidel_redblack(uloc,cart_comm,Delta,irank,coords,N+2)
+    case default
+      write(*,'(A,I0)') 'Unknown algorithm?? = ',algo
+    end select
+  end do
+  t2 = MPI_Wtime()-t1  
+
+  ! print to terminal
+  do i = 0,isize-1  
+    if (irank==i) then
+      write(*,*) 'Wallclock: ', t2
+    end if
+    call mpi_barrier(cart_comm,ierr)
+  end do
+
+  ! write this to file:
+  allocate(times(isize))
+  call MPI_GATHER(t2, 1, MPI_DOUBLE_PRECISION, times, 1,&
+                  MPI_DOUBLE_PRECISION, 0, cart_comm, ierr)
+  if (irank == 0) then
+    do i = 1,isize
+      write(420,*) times(i)
+    end do    
+    close(420)
+  end if
+  
 
   ! Prints the global matrix to a VTK File.
-  call vtk_u_global(uloc,coords,irank,isize,cart_comm)
+  !call vtk_u_global(uloc,coords,irank,isize,cart_comm)
   
   deallocate(uloc)
   CALL MPI_Finalize(ierr)
-
 end program main

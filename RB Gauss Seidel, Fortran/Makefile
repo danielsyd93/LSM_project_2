@@ -5,7 +5,7 @@ target = runme
 
 CC = mpicc
 FC = mpifort
-FFLAGS = -O2 -ftree-vectorize -march=native#-O3 -ffast-math -funroll-loops -fopenmp
+FFLAGS = -O3 -ftree-vectorize -march=native -ffast-math -funroll-loops -fopenmp
 
 OBJS = main.o write_vtk.o
 

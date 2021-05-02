@@ -1,0 +1,122 @@
+mpicc -c write_vtk.c
+mpifort -c -O3 -ftree-vectorize -march=native -ffast-math -funroll-loops -fopenmp main.f90
+mpifort -O3 -ftree-vectorize -march=native -ffast-math -funroll-loops -fopenmp main.o write_vtk.o -o runme
+mpirun -np 8 --map-by dist:span --mca rmaps_dist_device ib0 --report-bindings ./runme 8 8 2 2 2 0 2>&1 > HPCdata/N8_P8_px2_py2_pz2_0
+mpirun -np 8 --map-by dist:span --mca rmaps_dist_device ib0 --report-bindings ./runme 27 8 2 2 2 0 2>&1 > HPCdata/N27_P8_px2_py2_pz2_0
+mpirun -np 27 --map-by dist:span --mca rmaps_dist_device ib0 --report-bindings ./runme 27 27 3 3 3 0 2>&1 > HPCdata/N27_P27_px3_py3_pz3_0
+mpirun -np 8 --map-by dist:span --mca rmaps_dist_device ib0 --report-bindings ./runme 64 8 2 2 2 0 2>&1 > HPCdata/N64_P8_px2_py2_pz2_0
+mpirun -np 27 --map-by dist:span --mca rmaps_dist_device ib0 --report-bindings ./runme 64 27 3 3 3 0 2>&1 > HPCdata/N64_P27_px3_py3_pz3_0
+mpirun -np 64 --map-by dist:span --mca rmaps_dist_device ib0 --report-bindings ./runme 64 64 4 4 4 0 2>&1 > HPCdata/N64_P64_px4_py4_pz4_0
+mpirun -np 8 --map-by dist:span --mca rmaps_dist_device ib0 --report-bindings ./runme 125 8 2 2 2 0 2>&1 > HPCdata/N125_P8_px2_py2_pz2_0
+mpirun -np 27 --map-by dist:span --mca rmaps_dist_device ib0 --report-bindings ./runme 125 27 3 3 3 0 2>&1 > HPCdata/N125_P27_px3_py3_pz3_0
+mpirun -np 64 --map-by dist:span --mca rmaps_dist_device ib0 --report-bindings ./runme 125 64 4 4 4 0 2>&1 > HPCdata/N125_P64_px4_py4_pz4_0
+mpirun -np 8 --map-by dist:span --mca rmaps_dist_device ib0 --report-bindings ./runme 216 8 2 2 2 0 2>&1 > HPCdata/N216_P8_px2_py2_pz2_0
+mpirun -np 27 --map-by dist:span --mca rmaps_dist_device ib0 --report-bindings ./runme 216 27 3 3 3 0 2>&1 > HPCdata/N216_P27_px3_py3_pz3_0
+mpirun -np 64 --map-by dist:span --mca rmaps_dist_device ib0 --report-bindings ./runme 216 64 4 4 4 0 2>&1 > HPCdata/N216_P64_px4_py4_pz4_0
+mpirun -np 8 --map-by dist:span --mca rmaps_dist_device ib0 --report-bindings ./runme 343 8 2 2 2 0 2>&1 > HPCdata/N343_P8_px2_py2_pz2_0
+mpirun -np 27 --map-by dist:span --mca rmaps_dist_device ib0 --report-bindings ./runme 343 27 3 3 3 0 2>&1 > HPCdata/N343_P27_px3_py3_pz3_0
+mpirun -np 64 --map-by dist:span --mca rmaps_dist_device ib0 --report-bindings ./runme 343 64 4 4 4 0 2>&1 > HPCdata/N343_P64_px4_py4_pz4_0
+mpirun -np 8 --map-by dist:span --mca rmaps_dist_device ib0 --report-bindings ./runme 512 8 2 2 2 0 2>&1 > HPCdata/N512_P8_px2_py2_pz2_0
+mpirun -np 27 --map-by dist:span --mca rmaps_dist_device ib0 --report-bindings ./runme 512 27 3 3 3 0 2>&1 > HPCdata/N512_P27_px3_py3_pz3_0
+mpirun -np 64 --map-by dist:span --mca rmaps_dist_device ib0 --report-bindings ./runme 512 64 4 4 4 0 2>&1 > HPCdata/N512_P64_px4_py4_pz4_0
+mpirun -np 8 --map-by dist:span --mca rmaps_dist_device ib0 --report-bindings ./runme 729 8 2 2 2 0 2>&1 > HPCdata/N729_P8_px2_py2_pz2_0
+mpirun -np 27 --map-by dist:span --mca rmaps_dist_device ib0 --report-bindings ./runme 729 27 3 3 3 0 2>&1 > HPCdata/N729_P27_px3_py3_pz3_0
+mpirun -np 64 --map-by dist:span --mca rmaps_dist_device ib0 --report-bindings ./runme 729 64 4 4 4 0 2>&1 > HPCdata/N729_P64_px4_py4_pz4_0
+mpirun -np 8 --map-by dist:span --mca rmaps_dist_device ib0 --report-bindings ./runme 1000 8 2 2 2 0 2>&1 > HPCdata/N1000_P8_px2_py2_pz2_0
+
+------------------------------------------------------------
+Sender: LSF System <lsfadmin@hpc.dtu.dk>
+Subject: Job 9603232: <profiling> in cluster <dcc> Exited
+
+Job <profiling> was submitted from host <n-62-30-8> by user <s164331> in cluster <dcc> at Fri Apr 30 20:02:26 2021
+Job was executed on host(s) <24*n-62-21-77>, in queue <hpcintro>, as user <s164331> in cluster <dcc> at Fri Apr 30 20:02:28 2021
+                            <24*n-62-21-74>
+                            <24*n-62-21-76>
+</zhome/a0/5/117468> was used as the home directory.
+</zhome/a0/5/117468/Kurser/LSM/Project2/RB Gauss Seidel, Fortran> was used as the working directory.
+Started at Fri Apr 30 20:02:28 2021
+Terminated at Fri Apr 30 21:02:10 2021
+Results reported at Fri Apr 30 21:02:10 2021
+
+Your job looked like:
+
+------------------------------------------------------------
+# LSBATCH: User input
+#!/bin/bash
+#BSUB -n 72
+#BSUB -R "span[block=24]"
+#BSUB -W 00:59
+#BSUB -q hpcintro
+#BSUB -R "rusage[mem=3GB]"
+#BSUB -J profiling
+#BSUB -o HPCOutputs/Output_%J.out
+#BSUB -e HPCOutputs/Error_%J.err
+
+module purge
+module load mpi/3.1.3-gcc-8.2.0
+
+# do a clean build to ensure everything is updated
+make clean
+make
+
+# Loop matrix size
+for N in 8 27 64 125 216 343 512 729 1000 #1331 1728 2197
+do
+
+# Loop px
+for all_p in 2 3 4
+do
+px=$((all_p))
+py=$((all_p))
+pz=$((all_p))
+
+np=$((px*py*pz))
+
+# skip cases where np > N
+[ $np -gt $N ] && continue
+
+# skip calculations with more processors than available
+[ $np -gt $LSB_DJOB_NUMPROC ] && continue
+
+# adjust here for the different algorithms
+for algo in 0
+do
+out="HPCdata/N${N}_P${np}_px${px}_py${py}_pz${pz}_${algo}"
+[ -e $out ] && continue
+
+# Adjust arguments to your project
+echo "mpirun -np $np --map-by dist:span --mca rmaps_dist_device ib0 \
+--report-bindings \
+./runme $N $np $px $py $pz $algo 2>&1 > $out"
+
+mpirun -np $np --map-by dist:span --mca rmaps_dist_device ib0 \
+       --report-bindings \
+       ./runme $N $np $px $py $pz $algo > $out 2>${out}_binding
+
+(... more ...)
+------------------------------------------------------------
+
+TERM_RUNLIMIT: job killed after reaching LSF run time limit.
+Exited with exit code 140.
+
+Resource usage summary:
+
+    CPU time :                                   28423.00 sec.
+    Max Memory :                                 8109 MB
+    Average Memory :                             7217.70 MB
+    Total Requested Memory :                     221184.00 MB
+    Delta Memory :                               213075.00 MB
+    Max Swap :                                   21 MB
+    Max Processes :                              14
+    Max Threads :                                41
+    Run time :                                   3582 sec.
+    Turnaround time :                            3584 sec.
+
+The output (if any) is above this job summary.
+
+
+
+PS:
+
+Read file <HPCOutputs/Error_9603232.err> for stderr output of this job.
+

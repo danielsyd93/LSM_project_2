@@ -1,0 +1,36 @@
+#
+# Makefile for the matrix redistribution project
+#
+target = runme
+
+.SUFFIXES: .f90 .F90 .c
+default: $(target)
+
+MPICC = mpicc
+MPIFC = mpifort
+CFLAGS = -O3 -ftree-vectorize -march=native
+FFLAGS = -O3 -ftree-vectorize -march=native -ffast-math -funroll-loops -fopenmp#-O3 -ftree-vectorize -march=native
+
+#INCLUDES = -I.
+OBJS = main.o
+OBJS += write_vtk.o
+
+# put everything in an arch.make file, if needed
+#-include arch.make
+
+clean:
+	@/bin/rm -f $(OBJS) *.mod
+
+# linking: the target depends on the objects
+$(target): $(OBJS)
+	$(FC) $(FFLAGS) $(OBJS) -o $(target)
+
+.f90.o:
+	$(MPIFC) -c $< $(FFLAGS)
+.F90.o:
+	$(MPIFC) -c $< $(FFLAGS)
+.c.o:
+	$(MPICC) -c $< #$(CFLAGS)
+
+# Dependencies
+main.o: write_vtk.o
