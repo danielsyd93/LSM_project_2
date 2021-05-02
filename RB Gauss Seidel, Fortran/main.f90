@@ -236,7 +236,6 @@ real(dp), intent(in) :: delta
 integer :: i,j,k
 integer :: N_loc
 integer :: ierr
-real(dp), dimension(:,:,:) :: temp
 
 do i = 2,size(u,1)-1
     do j = 2,size(u,2)-1
@@ -547,7 +546,7 @@ program main
   call ApplyBC(2,N,20,coords,irank,uloc,cart_comm)
     ! u(:,N,:) = 20
   call ApplyBC(1,N,0,coords,irank,uloc,cart_comm)
-  if (algo==1)
+  if (algo==1) then
     allocate(uoldloc(N/l+2,N/c+2,N/r+2))
     uoldloc(:,:,:) = 0
       ! u(1,:,:) = 0
@@ -562,7 +561,7 @@ program main
     call ApplyBC(2,N,20,coords,irank,uoldloc,cart_comm)
       ! u(:,N,:) = 20
     call ApplyBC(1,N,0,coords,irank,uoldloc,cart_comm)
-  end fi
+  end if
 
   !Defining Delta (2 is to define the 2 meters of box length):
   Delta = 2._dp/(N-1._dp)
