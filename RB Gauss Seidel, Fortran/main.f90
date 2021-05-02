@@ -227,6 +227,37 @@ contains
   
 ! ------------------------------------------------------------------------ !
 
+subroutine Jacobi(u,u_old,coords,irank,N)
+real(dp), dimension(:,:,:), intent(inout) :: u
+real(dp), dimension(:,:,:), intent(inout) :: u_old
+integer,  intent(in) :: comm,irank,coords(3),N
+real(dp), intent(in) :: Delta
+
+integer :: i,j,k
+integer :: N_loc
+integer :: ierr
+real(dp) :: temp
+
+do i = 2,size(u,1)-1
+    do j = 2,size(u,2)-1
+      do k = 2+mod(i+j,2),size(u,3)-1,2
+        u_old(i,j,k) =(u(i-1,j,k)+u(i+1,j,k)&!X-direction
+                  +u(i,j-1,k)+u(i,j+1,k)&!Y-direction
+                  +u(i,j,k-1)+u(i,j,k+1)&!Z-direction
+                  +delta**2._dp*evalRadiator(i,j,k,N_loc,coords,N)&
+                   )/6._dp
+      end do
+    end do
+  end do
+
+
+temp=u
+u=u_old
+u_old=temp
+
+end subroutine Jacobi
+
+! ------------------------------------------------------------------------ !
   real(dp) function evalRadiator(i,j,k,N_loc,coords,N)
     integer,  intent(in) :: i,j,k,N_loc,coords(3),N
     real(dp) :: x,y,z
