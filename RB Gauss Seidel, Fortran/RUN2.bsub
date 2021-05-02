@@ -1,0 +1,68 @@
+#!/bin/bash
+#BSUB -n 72
+#BSUB -R "span[block=24]"
+#BSUB -W 00:59
+#BSUB -q hpcintro
+#BSUB -R "rusage[mem=3GB]"
+#BSUB -J profiling
+#BSUB -o HPCOutputs/Output_%J.out
+#BSUB -e HPCOutputs/Error_%J.err
+
+module purge
+module load mpi/3.1.3-gcc-8.2.0
+
+# do a clean build to ensure everything is updated
+make clean
+make
+
+# Loop matrix size
+for N in {8..1000}
+do
+
+# Loop px
+for p in {2..4}
+do
+px=$((p))
+py=$((p))
+pz=$((p))
+
+np=$((px*py*pz))
+nx=$((N/px))
+
+# Skipping cases:
+# skip cases where np > N
+[ $np -gt $N ] && continue
+
+# skip calculations with more processors than available
+[ $np -gt $LSB_DJOB_NUMPROC ] && continue
+
+# skip situations that runs out of memory
+[ $nx -gt 720 ] && continue
+
+# Skip calculations that will nok work
+if [ $((N % np)) -eq 0 ] && [ $((N % px)) -eq 0 ]
+then
+
+# adjust here for the different algorithms
+for algo in 0
+do
+out="HPCdata/N${N}_P${np}_px${px}_py${py}_pz${pz}_${algo}"
+[ -e $out ] && continue
+
+# Adjust arguments to your project
+echo "mpirun -np $np --map-by dist:span --mca rmaps_dist_device ib0 \
+--report-bindings \
+./runme $N $np $px $py $pz $algo 2>&1 > $out"
+
+mpirun -np $np --map-by dist:span --mca rmaps_dist_device ib0 \
+       --report-bindings \
+       ./runme $N $np $px $py $pz $algo > $out 2>${out}_binding
+
+done #algo
+
+fi # done if statement
+
+done #all_p
+
+done #N
+
