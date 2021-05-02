@@ -4,10 +4,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define N 10
+int N = 10;
 
-double matrix[N][N][N];
-double delta = (double)1/(N-1);
+double*** matrix;
+double* matrixWin;
+double delta;
 
 struct coordinates{
     int x;
@@ -80,6 +81,28 @@ void initMatrix()
     }
 }
 
+void initMatrixWin()
+{
+    for(int x = 0; x < N; ++x)
+    {
+        for(int y = 0; y < N; ++y)
+        {
+            for(int z = 0; z < N; ++z)
+            {
+                if(checkForBoundary(x, y, z))
+                {
+                    matrixWin[x*N*N+y*N+z] = getBoundaryValue(x, y, z);
+                }
+                else
+                {
+                    matrixWin[x*N*N+y*N+z] = 0;
+                }
+                
+            }
+        }
+    }
+}
+
 int getRadiatorValue(int aI, int aJ, int aK)
 {
     double x = (double)aI / (N-1);
@@ -98,6 +121,12 @@ double evalPoint(int aI, int aJ, int aK)
     matrix[aI][aJ][aK] = (double)1/6 * (matrix[aI - 1][aJ][aK] + matrix[aI+1][aJ][aK] + matrix[aI][aJ-1][aK]
         + matrix[aI][aJ+1][aK] + matrix[aI][aJ][aK-1] + matrix[aI][aJ][aK+1] + delta * delta * getRadiatorValue(aI, aJ, aK));
     return matrix[aI][aJ][aK];
+}
+
+void evalPointWin(int aI, int aJ, int aK)
+{
+    matrixWin[aI*N*N+aJ*N+aK] = (double)1/6 * (matrixWin[(aI-1)*N*N+aJ*N+aK] + matrixWin[(aI+1)*N*N+aJ*N+aK] + matrixWin[aI*N*N+(aJ-1)*N+aK]
+        + matrixWin[aI*N*N+(aJ+1)*N+aK] + matrixWin[aI*N*N+aJ*N+aK-1] + matrixWin[aI*N*N+aJ*N+aK-1] + delta * delta * getRadiatorValue(aI, aJ, aK));
 }
 
 void evalSequentually()
@@ -211,14 +240,10 @@ void wavefrontSeq()
         struct coordinates* coordinates = (struct coordinates*)malloc(sizeof(struct coordinates)*((diagonal-1)*(diagonal-2)/2));
 
         int count = getDiagonal2D(diagonal,coordinates);
-        //printf("diagonal: %d, count: %d\t", diagonal, count);
         for(int i = 0; i < count; ++i)
         {
             evalPoint(coordinates[i].x, coordinates[i].y, coordinates[i].z);
-            //printf("%d %d %d ", coordinates[i].x, coordinates[i].y, coordinates[i].z);
-           // printf("%.2f ", matrix[coordinates[i].x][coordinates[i].y][coordinates[i].z]);
         }
-        //printf("\n");
         free(coordinates);
     }
 }
@@ -274,8 +299,6 @@ void wavefrontParallel2DBcast()
 
     for(int diagonal = 3; diagonal <= (N-2)*3; ++diagonal)
     {
-        MPI_Barrier(MPI_COMM_WORLD);
-
         struct coordinates* coordinates = (struct coordinates*)malloc(sizeof(struct coordinates)*((diagonal-1)*(diagonal-2)/2));
 
         int count = getDiagonal2D(diagonal,coordinates);
@@ -341,8 +364,6 @@ void wavefrontParallelHybrid()
 
     for(int diagonal = 3; diagonal <= (N-2)*3; ++diagonal)
     {
-        MPI_Barrier(MPI_COMM_WORLD);
-
         struct coordinates* coordinates = (struct coordinates*)malloc(sizeof(struct coordinates)*((diagonal-1)*(diagonal-2)/2));
 
         int count = getDiagonal2D(diagonal,coordinates);
@@ -400,6 +421,107 @@ void wavefrontParallelHybrid()
     }
 }
 
+void wavefrontParallelWin()
+{
+    int rank;
+    int size;
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    for(int diagonal = 3; diagonal <= (N-2)*3; ++diagonal)
+    {
+        struct coordinates* coordinates = (struct coordinates*)malloc(sizeof(struct coordinates)*((diagonal-1)*(diagonal-2)/2));
+
+        int count = getDiagonal2D(diagonal,coordinates);
+        for(int i = rank; i < count; i+=size)
+        {
+            evalPointWin(coordinates[i].x, coordinates[i].y, coordinates[i].z);
+        }
+        free(coordinates);
+        MPI_Barrier(MPI_COMM_WORLD);
+    }
+}
+
+void redDotBlackDotWin()
+{
+    int rank;
+    int size;
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    for(int x = 1; x < N-1; ++x)
+    {
+        for(int y = rank + 1; y < N-1; y+=size)
+        {
+            int zStart;
+            if(x+y % 2 == 0)
+            {
+                zStart = 1;
+            }
+            else
+            {
+                zStart = 2;
+            }
+            for(int z = zStart; z < N-1; z+=2)
+            {
+                evalPointWin(x, y, z);
+            }
+        }
+    }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    for(int x = 1; x < N-1; ++x)
+    {
+        for(int y = rank + 1; y < N-1; y+=size)
+        {
+            int zStart;
+            if(x+y % 2 == 0)
+            {
+                zStart = 2;
+            }
+            else
+            {
+                zStart = 1;
+            }
+            for(int z = zStart; z < N-1; z+=2)
+            {
+                evalPointWin(x, y, z);
+            }
+        }
+    }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+}
+
+void matrixAllocate(int N)
+{
+    matrix = (double***)malloc(sizeof(double**)*N);
+
+    for(int i = 0; i < N; ++i)
+    {
+        matrix[i] = (double**)malloc(sizeof(double*)*N);
+        for(int j = 0; j < N; ++j)
+        {
+            matrix[i][j] = (double*)malloc(sizeof(double)*N);
+        }
+    }
+}
+
+void matrixFree()
+{
+    for(int i = 0; i < N; ++i)
+    {
+        for(int j = 0; j < N; ++j)
+        {
+            free(matrix[i][j]);
+        }
+        free(matrix[i]);
+    }
+    free(matrix);
+}
 
 void write_vtk(int n, double* u);
 void writeParaviewCSV();
@@ -411,28 +533,164 @@ int main(int argc, char *argv [])
     int rank;
     int size;
 
+    N = atoi(argv[1]);
+    delta = (double)1/(N-1);
+
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);   
+
+    if(rank == 0)
+    {
+        printf("Program start, N size: %d,  MPI size: %d, openMP: %d\n", N,  size, omp_get_max_threads()); 
+    }
+
+    matrixAllocate(N);
 
     initMatrix();
 
+    double t0;
+    double t;
+
     if(rank == 0)
     {
-        printf("Program start, MPI size: %d, openMP: %d\n", size, omp_get_max_threads()); 
+        t0 = MPI_Wtime();
     }
-
 
     for(int i = 0; i < 100; ++i)
     {
-            wavefrontParallelHybrid();
+        if(rank == 0)
+        {
+            evalSequentually();
+        }
     }
 
-    
     if(rank == 0)
     {
-        printMatrixCommandLine(); 
+        t = MPI_Wtime() - t0;
+        printf("Serial took %.4f seconds\n", t);
     }
-       
+
+    initMatrix();
+
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    if(rank == 0)
+    {
+        t0 = MPI_Wtime();
+    }
+
+    for(int i = 0; i < 100; ++i)
+    {
+        if(rank == 0)
+        {
+            wavefrontSeq();
+        }
+    }
+
+    if(rank == 0)
+    {
+        t = MPI_Wtime() - t0;
+        printf("wavefrontSeq took %.4f seconds\n", t);
+    }
+
+    initMatrix();
+
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    if(rank == 0)
+    {
+        t0 = MPI_Wtime();
+    }
+
+    for(int i = 0; i < 100; ++i)
+    {
+        wavefrontParallelBcast();
+    }
+
+    if(rank == 0)
+    {
+        t = MPI_Wtime() - t0;
+        printf("wavefrontParallelBcast took %.4f seconds\n", t);
+    }
+
+    initMatrix();
+
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    if(rank == 0)
+    {
+        t0 = MPI_Wtime();
+    }
+
+    for(int i = 0; i < 100; ++i)
+    {
+        wavefrontParallel2DBcast();
+    }
+
+    if(rank == 0)
+    {
+        t = MPI_Wtime() - t0;
+        printf("wavefrontParallel2DBcast took %.4f seconds\n", t);
+    }
+
+
+    
+    matrixFree();
+
+    MPI_Win win;
+    MPI_Aint matrixSize = N*N*N*sizeof(double);
+
+    if (rank == 0)
+    {
+        MPI_Win_allocate_shared(matrixSize, sizeof(double), MPI_INFO_NULL,
+                           MPI_COMM_WORLD, &matrixWin, &win);
+    }
+    else
+    {
+        int dispUnit =0;
+        MPI_Win_allocate_shared(0, sizeof(double), MPI_INFO_NULL,
+                              MPI_COMM_WORLD, &matrixWin, &win);
+        MPI_Win_shared_query(win, 0, &matrixSize, &dispUnit, &matrixWin);
+    }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    if(rank == 0)
+    {
+        initMatrixWin();
+        t0 = MPI_Wtime();
+    }
+
+    for(int i = 0; i < 100; ++i)
+    {
+            wavefrontParallelWin();
+    }
+
+    if(rank == 0)
+    {
+        t = MPI_Wtime() - t0;
+        printf("wavefrontParallelWin took %.4f seconds\n", t);
+    }
+
+    if(rank == 0)
+    {
+        initMatrixWin();
+        t0 = MPI_Wtime();
+    }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    for(int i = 0; i < 100; ++i)
+    {
+            redDotBlackDotWin();
+    }
+
+    if(rank == 0)
+    {
+        t = MPI_Wtime() - t0;
+        printf("redDotBlackDotWin took %.4f seconds\n\n", t);
+    }
+
 
     //printMinMax();
 
@@ -441,9 +699,8 @@ int main(int argc, char *argv [])
     //free(matrix1D);
 
 
+    MPI_Win_free(&win);
     MPI_Finalize();
-
-    printf("Program finish\n");
 }
 
 static int is_little_endian(void) {
