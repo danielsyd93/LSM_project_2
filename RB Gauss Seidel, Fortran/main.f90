@@ -227,36 +227,6 @@ contains
   
 ! ------------------------------------------------------------------------ !
 
-subroutine Jacobi(u,u_old,delta,coords,comm,irank,N)
-real(dp), dimension(:,:,:), intent(inout) :: u
-real(dp), dimension(:,:,:), intent(inout) :: u_old
-integer,  intent(in) :: comm,irank,coords(3),N
-real(dp), intent(in) :: delta
-
-integer :: i,j,k
-integer :: N_loc
-integer :: ierr
-
-do i = 2,size(u,1)-1
-    do j = 2,size(u,2)-1
-      do k = 2,size(u,3)-1
-        u(i,j,k) =(u_old(i-1,j,k)+u_old(i+1,j,k)&!X-direction
-                  +u_old(i,j-1,k)+u_old(i,j+1,k)&!Y-direction
-                  +u_old(i,j,k-1)+u_old(i,j,k+1)&!Z-direction
-                  +delta**2._dp*evalRadiator(i,j,k,N_loc,coords,N)&
-                   )/6._dp
-      end do
-    end do
-  end do
-
-
-
-u_old(:,:,:)=u(:,:,:)
-
-call updateComm(u,irank,comm)
-end subroutine Jacobi
-
-! ------------------------------------------------------------------------ !
   real(dp) function evalRadiator(i,j,k,N_loc,coords,N)
     integer,  intent(in) :: i,j,k,N_loc,coords(3),N
     real(dp) :: x,y,z
@@ -441,7 +411,6 @@ program main
 
   ! field variables  
   real(dp), allocatable, dimension(:,:,:) :: uloc
-  real(dp), allocatable, dimension(:,:,:) :: uoldloc
   real(dp) :: Delta
 
   ! MPI Variables
@@ -500,7 +469,6 @@ program main
   if (irank == 0) then
     call assert((.not. p==(r*c*l)), 'ERROR this should hold: p==(r*c*l)' ,flag)
     call assert((.not. p==isize),   'ERROR this should hold: p==isize'   ,flag)
-    call assert((.not. mod(N,p)==0),'ERROR this should hold: mod(N,p)==0',flag)
     call assert((.not. mod(N,c)==0),'ERROR this should hold: mod(N,c)==0',flag)
     call assert((.not. mod(N,r)==0),'ERROR this should hold: mod(N,r)==0',flag)
     call assert((.not. mod(N,l)==0),'ERROR this should hold: mod(N,r)==0',flag)
@@ -516,7 +484,7 @@ program main
 
   ! First a Cartesian grid is generated:
   ndims = 3
-  dim_size = 2
+  dim_size = c
   periods = .false.
   reorder = .true.
   CALL MPI_Cart_create(MPI_COMM_WORLD,ndims,dim_size,periods,reorder&
@@ -529,7 +497,6 @@ program main
 
   ! Allocating u
   allocate(uloc(N/l+2,N/c+2,N/r+2))
-  
   
   ! Applying boundary conditions
     ! u(:,:,:) = 0
@@ -546,34 +513,16 @@ program main
   call ApplyBC(2,N,20,coords,irank,uloc,cart_comm)
     ! u(:,N,:) = 20
   call ApplyBC(1,N,0,coords,irank,uloc,cart_comm)
-  if (algo==1) then
-    allocate(uoldloc(N/l+2,N/c+2,N/r+2))
-    uoldloc(:,:,:) = 0
-      ! u(1,:,:) = 0
-    call ApplyBC(0,0,20,coords,irank,uoldloc,cart_comm)
-      ! u(N,:,:) = 0
-    call ApplyBC(0,N,20,coords,irank,uoldloc,cart_comm)
-      ! u(:,1,:) = 0
-    call ApplyBC(1,0,20,coords,irank,uoldloc,cart_comm)
-      ! u(:,:,1) = 0
-    call ApplyBC(2,0,20,coords,irank,uoldloc,cart_comm)
-      ! u(:,:,N) = 0
-    call ApplyBC(2,N,20,coords,irank,uoldloc,cart_comm)
-      ! u(:,N,:) = 20
-    call ApplyBC(1,N,0,coords,irank,uoldloc,cart_comm)
-  end if
 
   !Defining Delta (2 is to define the 2 meters of box length):
   Delta = 2._dp/(N-1._dp)
-
+  
   t1 = MPI_Wtime()
   do i = 1,1000
     select case (algo)
     case(0)
       ! Calling the Gauss Seidel routine:
       call Gauss_Seidel_redblack(uloc,cart_comm,Delta,irank,coords,N+2)
-    case(1)
-      call Jacobi(uloc,uoldloc,Delta,coords,cart_comm,irank,N+2)     
     case default
       write(*,'(A,I0)') 'Unknown algorithm?? = ',algo
     end select
@@ -599,11 +548,9 @@ program main
     close(420)
   end if
   
-
   ! Prints the global matrix to a VTK File.
   !call vtk_u_global(uloc,coords,irank,isize,cart_comm)
   
   deallocate(uloc)
-  deallocate(uoldloc)
   CALL MPI_Finalize(ierr)
 end program main

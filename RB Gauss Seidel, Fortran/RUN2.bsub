@@ -3,7 +3,7 @@
 #BSUB -R "span[block=24]"
 #BSUB -W 00:59
 #BSUB -q hpcintro
-#BSUB -R "rusage[mem=3GB]"
+#BSUB -R "rusage[mem=5GB]"
 #BSUB -J profiling
 #BSUB -o HPCOutputs/Output_%J.out
 #BSUB -e HPCOutputs/Error_%J.err
@@ -16,11 +16,12 @@ make clean
 make
 
 # Loop matrix size
-for N in {8..1000}
+# 8 24 72 168 264 360 456 552 636 732 828
+for N in 924 1020 1116 #{8..1000}
 do
 
 # Loop px
-for p in {2..4}
+for p in 3 2 #4 3 2
 do
 px=$((p))
 py=$((p))
@@ -36,11 +37,11 @@ nx=$((N/px))
 # skip calculations with more processors than available
 [ $np -gt $LSB_DJOB_NUMPROC ] && continue
 
-# skip situations that runs out of memory
+# skip situations that runs out of memory (here estimated for 3bg / node)
 [ $nx -gt 720 ] && continue
 
 # Skip calculations that will nok work
-if [ $((N % np)) -eq 0 ] && [ $((N % px)) -eq 0 ]
+if [ $((N % px)) -eq 0 ] 
 then
 
 # adjust here for the different algorithms

@@ -37,6 +37,7 @@ np=$((px*py*pz))
 # adjust here for the different algorithms
 for algo in 0
 do
+
 out="HPCdata/N${N}_P${np}_px${px}_py${py}_pz${pz}_${algo}"
 [ -e $out ] && continue
 
