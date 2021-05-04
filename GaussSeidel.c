@@ -126,7 +126,7 @@ double evalPoint(int aI, int aJ, int aK)
 void evalPointWin(int aI, int aJ, int aK)
 {
     matrixWin[aI*N*N+aJ*N+aK] = (double)1/6 * (matrixWin[(aI-1)*N*N+aJ*N+aK] + matrixWin[(aI+1)*N*N+aJ*N+aK] + matrixWin[aI*N*N+(aJ-1)*N+aK]
-        + matrixWin[aI*N*N+(aJ+1)*N+aK] + matrixWin[aI*N*N+aJ*N+aK-1] + matrixWin[aI*N*N+aJ*N+aK-1] + delta * delta * getRadiatorValue(aI, aJ, aK));
+        + matrixWin[aI*N*N+(aJ+1)*N+aK] + matrixWin[aI*N*N+aJ*N+aK-1] + matrixWin[aI*N*N+aJ*N+aK+1] + delta * delta * getRadiatorValue(aI, aJ, aK));
 }
 
 void evalSequentually()
@@ -172,6 +172,22 @@ void printMatrixCommandLine()
             for(int z = 0; z < N; ++z)
             {
                 printf("%.2f\t", matrix[x][y][z]);
+            }
+            printf("\n");
+        }
+        printf("\n\n");
+    }
+}
+
+void printMatrixCommandLineWin()
+{
+    for(int x = 0; x < N; ++x)
+    {
+        for(int y = 0; y < N; ++y)
+        {
+            for(int z = 0; z < N; ++z)
+            {
+                printf("%.2f\t", matrixWin[x*N*N+y*N+z]);
             }
             printf("\n");
         }
@@ -451,7 +467,29 @@ void redDotBlackDotWin()
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    for(int x = 1; x < N-1; ++x)
+    int endBound = ((N-2)-(N-2)%size)+1;
+
+    for(int x = rank + 1; x < endBound; x+=size)
+    {
+        for(int y = 1; y < N-1; y+=1)
+        {
+            int zStart;
+            if(x+y % 2 == 0)
+            {
+                zStart = 1;
+            }
+            else
+            {
+                zStart = 2;
+            }
+            for(int z = zStart; z < N-1; z+=2)
+            {
+                evalPointWin(x, y, z);
+            }
+        }
+    }
+
+    for(int x = endBound; x < N-1; ++x)
     {
         for(int y = rank + 1; y < N-1; y+=size)
         {
@@ -473,7 +511,27 @@ void redDotBlackDotWin()
 
     MPI_Barrier(MPI_COMM_WORLD);
 
-    for(int x = 1; x < N-1; ++x)
+    for(int x = rank + 1; x < endBound; x+=size)
+    {
+        for(int y = 1; y < N-1; y+=1)
+        {
+            int zStart;
+            if(x+y % 2 == 0)
+            {
+                zStart = 2;
+            }
+            else
+            {
+                zStart = 1;
+            }
+            for(int z = zStart; z < N-1; z+=2)
+            {
+                evalPointWin(x, y, z);
+            }
+        }
+    }
+
+    for(int x = endBound; x < N-1; ++x)
     {
         for(int y = rank + 1; y < N-1; y+=size)
         {
@@ -690,6 +748,8 @@ int main(int argc, char *argv [])
         t = MPI_Wtime() - t0;
         printf("redDotBlackDotWin took %.4f seconds\n\n", t);
     }
+
+    
 
 
     //printMinMax();
