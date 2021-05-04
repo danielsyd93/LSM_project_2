@@ -181,9 +181,9 @@ contains
 
 ! -------------------------------------------------------------------------!
 
-  subroutine Gauss_Seidel_redblack_OMP(u,comm,delta,irank,coords,N,it)
+  subroutine Gauss_Seidel_redblack_OMP(u,comm,delta,irank,isize,coords,N,it)
   real(dp), dimension(:,:,:), intent(inout) :: u
-  integer,  intent(in) :: comm,irank,coords(3),N,it
+  integer,  intent(in) :: comm,irank,coords(3),N,it,isize
   real(dp), intent(in) :: Delta
   
   integer :: i,j,k
@@ -191,8 +191,9 @@ contains
   integer :: N_loc
   integer :: ierr
 
-  !$OMP parallel default(none) private(i,j,k,iter,ierr) shared(u,comm,delta,irank,N,coords,it,N_loc) 
+  !$OMP parallel default(none) private(i,j,k,iter,ierr,isize) shared(u,comm,delta,irank,N,coords,it,N_loc) 
 
+  ! used for debugging
   print*, 'irank:',irank,'threads:',omp_get_num_threads()
 
   ! For the evalRadiator function:
@@ -202,7 +203,7 @@ contains
   do iter = 1,it
     
     !$OMP do schedule(static)
-    ! RED DOTS (Even coordinate sums)
+    ! RED DOTS (Even coordinte sums)
     do i = 2,size(u,1)-1
       do j = 2,size(u,2)-1
         do k = 2+mod(i+j,2),size(u,3)-1,2
@@ -216,11 +217,13 @@ contains
     end do
     !$OMP end do
 
-    !$OMP master
-    ! Update walls:
-    call updateComm(u,irank,comm)
-    !$OMP end master
-    !$OMP barrier
+    if (isize .ne. 1) then
+      !$OMP master
+      ! Update walls:
+      call updateComm(u,irank,comm)
+      !$OMP end master
+      !$OMP barrier
+    end if
 
     !$OMP do schedule(static)
     ! BLACK DOTS (Uneven coordinate sums)
@@ -237,11 +240,13 @@ contains
     end do
     !$OMP end do
     
-    !$OMP master
-    ! Update walls:
-    call updateComm(u,irank,comm)
-    !$OMP end master
-    !$OMP barrier
+    if (isize .ne. 1) then ! for cases with only openMP
+      !$OMP master
+      ! Update walls:
+      call updateComm(u,irank,comm)
+      !$OMP end master
+      !$OMP barrier
+    end if
 
   end do
 
@@ -488,7 +493,7 @@ program main
      write(filename,'(7(a,i0),a)') 'HPCdata/N',N,'_P',P,'_px',r,'_py',c,&
            '_pz',l,'_algo',algo,'_numthreads',omp_get_num_threads(),'.dat'
 
-    open(420,file=filename,status="new")
+    open(420,file=filename)!,status="new")
     write(420,'(8(a,i0),a)') "project: algo[", algo, &
               "] ranks=", isize, " matrix=", N," Threads=",omp_get_num_threads()," Prc(",r,',',c,',',l,")"
     !$OMP end single
@@ -551,7 +556,8 @@ program main
   select case (algo)
   case(0)
     ! Calling the Gauss Seidel routine:
-    call Gauss_Seidel_redblack_OMP(uloc,cart_comm,Delta,irank,coords,N+2,1000)
+    call Gauss_Seidel_redblack_OMP(uloc,cart_comm,Delta,irank,&
+                                   isize,coords,N+2,1000)
   case default
     write(*,'(A,I0)') 'Unknown algorithm?? = ',algo
   end select
@@ -577,7 +583,7 @@ program main
   end if
   
   ! Prints the global matrix to a VTK File.
-  call vtk_u_global(uloc,coords,irank,isize,cart_comm)
+  !call vtk_u_global(uloc,coords,irank,isize,cart_comm)
   
   deallocate(uloc)
   CALL MPI_Finalize(ierr)

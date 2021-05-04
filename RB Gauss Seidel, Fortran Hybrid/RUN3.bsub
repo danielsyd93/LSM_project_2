@@ -1,0 +1,21 @@
+#!/bin/bash
+#BSUB -n 72
+#BSUB -R "span[block=24]"
+#BSUB -W 00:02
+#BSUB -q hpcintro
+#BSUB -R "rusage[mem=3GB]"
+#BSUB -J profiling
+#BSUB -o HPCOutputs/Output_%J.out
+#BSUB -e HPCOutputs/Error_%J.err
+
+module purge
+module load mpi/3.1.3-gcc-8.2.0
+
+# do a clean build to ensure everything is updated
+make clean
+make
+
+# Loop matrix size
+#for N in 8 24 72 168 264 360 456 552 636 732 828 924 1020 1116 #{8..1000}
+mpirun -np 64 ./runme 72 64 4 4 4 0
+

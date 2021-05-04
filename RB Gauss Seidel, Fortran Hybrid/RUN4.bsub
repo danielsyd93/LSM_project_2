@@ -1,0 +1,86 @@
+#!/bin/bash
+#BSUB -n 72
+#BSUB -R "span[block=24]"
+#BSUB -W 00:59
+#BSUB -q hpcintro
+#BSUB -R "rusage[mem=3GB]"
+#BSUB -J profiling
+#BSUB -o HPCOutputs/Output_%J.out
+#BSUB -e HPCOutputs/Error_%J.err
+
+# clear out the LSB affinity file (it disturbs in this setup)
+/bin/rm -f $LSB_AFFINITY_HOSTFILE
+touch $LSB_AFFINITY_HOSTFILE
+
+# load MPI version
+module purge
+module load mpi/3.1.3-gcc-8.2.0
+
+# mpirun options
+BIND="--bind-to socket"
+MAP="--map-by node"
+RANK="--rank-by socket"
+REPORT="--report-bindings"
+
+# do a clean build to ensure everything is updated
+make clean
+make
+
+# Loop matrix size
+for N in 264 360 456 #{8..1000}
+do
+
+# Loop px
+for p in {2..4}
+do
+px=$((p))
+py=$((p))
+pz=$((p))
+
+np=$((px*py*pz))
+nx=$((N/px))
+
+# Skipping cases:
+# skip cases where np > N
+[ $np -gt $N ] && continue
+
+# skip calculations with more processors than available
+[ $np -gt $LSB_DJOB_NUMPROC ] && continue
+
+# skip situations that runs out of memory (here estimated for 3bg / node)
+[ $nx -gt 720 ] && continue
+
+# Skip calculations that will nok work
+if [ $((N % px)) -eq 0 ] 
+then
+
+# adjust here for the different algorithms
+for algo in 0
+do
+
+# Defining the number of threads
+for th in 1 2
+do
+
+out="HPCdata/N${N}_P${np}_px${px}_py${py}_pz${pz}_${algo}_numthreads${th}"
+[ -e $out ] && continue
+
+# threads per rank
+export OMP_NUM_THREADS=$((th))
+echo OMP_NUM_THREADS $OMP_NUM_THREADS
+
+#for p in ${RANGE}; do
+    mpirun -np $np $MAP $BIND $RANK $REPORT /bin/hostname  
+    mpirun -np $np $MAP $BIND $RANK $REPORT \
+	  ./runme $N $np $px $py $pz $algo > $out 2>${out}_binding
+    echo ====================
+
+done #threads
+
+done #algo
+
+fi # done if statement
+
+done #all_p
+
+done #N
