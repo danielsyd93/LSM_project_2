@@ -1,0 +1,6 @@
+project: algo[0] ranks=1 N=264 Prc(1,1,1)
+ threads:           4
+ threads:           4
+ threads:           4
+ threads:           4
+ Wallclock:    62.354158758185804     
