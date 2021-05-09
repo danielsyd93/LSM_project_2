@@ -181,32 +181,34 @@ contains
 
 ! -------------------------------------------------------------------------!
 
-  subroutine Gauss_Seidel_redblack_OMP(u,comm,delta,irank,isize,coords,N,it)
+  subroutine Gauss_Seidel_redblack_OMP(u,comm,delta,irank,coords,N,iter)
   real(dp), dimension(:,:,:), intent(inout) :: u
-  integer,  intent(in) :: comm,irank,coords(3),N,it,isize
+  integer,  intent(in) :: comm,irank,coords(3),N,iter
   real(dp), intent(in) :: Delta
   
   integer :: i,j,k
-  integer :: iter
+  integer :: it
   integer :: N_loc
   integer :: ierr
-
-  !$OMP parallel default(none) private(i,j,k,iter,ierr,isize) shared(u,comm,delta,irank,N,coords,it,N_loc) 
-
-  ! used for debugging
-  print*, 'irank:',irank,'threads:',omp_get_num_threads()
 
   ! For the evalRadiator function:
   N_loc = size(u,1)
 
+  !$OMP parallel default(none) private(i,j,k,it)&
+  !$OMP& shared(u,comm,delta,irank,N,coords,iter,ierr,N_loc) 
+
+  ! used for debugging
+  !print*, 'irank:',irank,'threads:',omp_get_num_threads()
+
+
   ! iterating over the volume
-  do iter = 1,it
-    
-    !$OMP do schedule(static)
+  do it = 1,iter
+
     ! RED DOTS (Even coordinte sums)
-    do i = 2,size(u,1)-1
-      do j = 2,size(u,2)-1
-        do k = 2+mod(i+j,2),size(u,3)-1,2
+    !$OMP do schedule(static)
+    do k = 2,N_loc-1
+      do j = 2,N_loc-1
+        do i = 2+mod(k+j,2),N_loc-1,2
           u(i,j,k) =(u(i-1,j,k)+u(i+1,j,k)&!X-direction
                     +u(i,j-1,k)+u(i,j+1,k)&!Y-direction
                     +u(i,j,k-1)+u(i,j,k+1)&!Z-direction
@@ -217,19 +219,17 @@ contains
     end do
     !$OMP end do
 
-    if (isize .ne. 1) then
-      !$OMP master
-      ! Update walls:
-      call updateComm(u,irank,comm)
-      !$OMP end master
-      !$OMP barrier
-    end if
+    !$OMP master
+    ! Update walls:
+    call updateComm(u,irank,comm)
+    !$OMP end master
+    !$OMP barrier
 
-    !$OMP do schedule(static)
     ! BLACK DOTS (Uneven coordinate sums)
-    do i = 2,size(u,1)-1
-      do j = 2,size(u,2)-1
-        do k = 2+mod(i+j+1,2),size(u,3)-1,2
+    !$OMP do schedule(static)
+    do k = 2,N_loc-1
+      do j = 2,N_loc-1
+        do i = 2+mod(k+j+1,2),N_loc-1,2
           u(i,j,k) =(u(i-1,j,k)+u(i+1,j,k)&!X-direction
                     +u(i,j-1,k)+u(i,j+1,k)&!Y-direction
                     +u(i,j,k-1)+u(i,j,k+1)&!Z-direction
@@ -240,19 +240,76 @@ contains
     end do
     !$OMP end do
     
-    if (isize .ne. 1) then ! for cases with only openMP
-      !$OMP master
-      ! Update walls:
-      call updateComm(u,irank,comm)
-      !$OMP end master
-      !$OMP barrier
-    end if
+    !$OMP master
+    ! Update walls:
+    call updateComm(u,irank,comm)
+    !$OMP end master
+    !$OMP barrier
 
   end do
 
   !$OMP end parallel
   end subroutine Gauss_Seidel_redblack_OMP
   
+! ------------------------------------------------------------------------ !
+
+  subroutine Jacobi(u,comm,Delta,irank,coords,N,iter)
+  real(dp), dimension(:,:,:), intent(inout) :: u
+  integer,  intent(in) :: comm,irank,coords(3),N,iter
+  real(dp), intent(in) :: delta
+
+  integer :: i,j,k,it
+  integer :: N_loc
+  integer :: ierr
+  real(dp), dimension(:,:,:), allocatable :: u_old
+  
+  !$OMP parallel default(none) private(i,j,k,it,ierr) shared(u,u_old,comm,delta,irank,N,coords,iter,N_loc) 
+
+  !$OMP master
+  N_loc = size(u,1)
+  allocate(u_old(N_loc,N_loc,N_loc))
+  !$OMP end master
+  !$OMP barrier  
+
+  do it = 1,iter  
+    
+    !$OMP do schedule(static)
+    ! Define all points in u_old
+    do k = 2,N_loc-1
+      do j = 2,N_loc-1
+        do i = 2,N_loc-1
+          u_old(i,j,k)=u(i,j,k)
+        end do
+      end do
+    end do
+    !$OMP end do
+
+    !$OMP do schedule(static)
+    ! Evaluate all points
+    do k = 2,N_loc-1
+      do j = 2,N_loc-1
+        do i = 2,N_loc-1
+          u(i,j,k) =(u_old(i-1,j,k)+u_old(i+1,j,k)&!X-direction
+                    +u_old(i,j-1,k)+u_old(i,j+1,k)&!Y-direction
+                    +u_old(i,j,k-1)+u_old(i,j,k+1)&!Z-direction
+                    +delta**2._dp*evalRadiator(i,j,k,N_loc,coords,N)&
+                     )/6._dp
+        end do
+      end do
+    end do
+    !$OMP end do
+
+    !$OMP master
+    ! Update ghots layers
+    call updateComm(u,irank,comm)
+    !$OMP end master
+    !$OMP barrier
+
+  end do
+
+  !$OMP end parallel
+end subroutine Jacobi
+
 ! ------------------------------------------------------------------------ !
 
   real(dp) function evalRadiator(i,j,k,N_loc,coords,N)
@@ -554,12 +611,14 @@ program main
   
   t1 = MPI_Wtime()
   select case (algo)
-  case(0)
-    ! Calling the Gauss Seidel routine:
-    call Gauss_Seidel_redblack_OMP(uloc,cart_comm,Delta,irank,&
-                                   isize,coords,N+2,1000)
-  case default
-    write(*,'(A,I0)') 'Unknown algorithm?? = ',algo
+    case(0)
+      ! Calling the Gauss Seidel routine:
+      call Gauss_Seidel_redblack_OMP(uloc,cart_comm,Delta,irank,&
+                                   coords,N+2,1000)
+    case(1)
+      call Jacobi(uloc,cart_comm,Delta,irank,coords,N+2,1000)
+    case default
+      write(*,'(A,I0)') 'Unknown algorithm?? = ',algo
   end select
   t2 = MPI_Wtime()-t1  
 
