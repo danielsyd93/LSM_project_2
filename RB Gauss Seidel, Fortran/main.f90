@@ -180,51 +180,100 @@ contains
 
 ! -------------------------------------------------------------------------!
 
-  subroutine Gauss_Seidel_redblack(u,comm,delta,irank,coords,N)
+  subroutine Gauss_Seidel_redblack(u,comm,delta,irank,coords,N,iter)
   real(dp), dimension(:,:,:), intent(inout) :: u
-  integer,  intent(in) :: comm,irank,coords(3),N
+  integer,  intent(in) :: comm,irank,coords(3),N,iter
   real(dp), intent(in) :: Delta
   
-  integer :: i,j,k
+  integer :: i,j,k,it
   integer :: N_loc
   integer :: ierr
 
   ! For the evalRadiator function:
   N_loc = size(u,1)
 
-  ! RED DOTS (Even coordinate sums)
-  do i = 2,size(u,1)-1
-    do j = 2,size(u,2)-1
-      do k = 2+mod(i+j,2),size(u,3)-1,2
-        u(i,j,k) =(u(i-1,j,k)+u(i+1,j,k)&!X-direction
-                  +u(i,j-1,k)+u(i,j+1,k)&!Y-direction
-                  +u(i,j,k-1)+u(i,j,k+1)&!Z-direction
-                  +delta**2._dp*evalRadiator(i,j,k,N_loc,coords,N)&
-                   )/6._dp
+  do it = 1,iter
+
+    ! RED DOTS (Even coordinate sums)
+    do k = 2,N_loc-1
+      do j = 2,N_loc-1
+        do i = 2+mod(k+j,2),N_loc-1,2
+          u(i,j,k) =(u(i-1,j,k)+u(i+1,j,k)&!X-direction
+                    +u(i,j-1,k)+u(i,j+1,k)&!Y-direction
+                    +u(i,j,k-1)+u(i,j,k+1)&!Z-direction
+                    +delta**2._dp*evalRadiator(i,j,k,N_loc,coords,N)&
+                     )/6._dp
+        end do
       end do
     end do
-  end do
 
-  ! Update walls:
-  call updateComm(u,irank,comm)
+    ! Update walls:
+    call updateComm(u,irank,comm)
 
-  ! BLACK DOTS (Uneven coordinate sums)
-  do i = 2,size(u,1)-1
-    do j = 2,size(u,2)-1
-      do k = 2+mod(i+j+1,2),size(u,3)-1,2
-        u(i,j,k) =(u(i-1,j,k)+u(i+1,j,k)&!X-direction
-                  +u(i,j-1,k)+u(i,j+1,k)&!Y-direction
-                  +u(i,j,k-1)+u(i,j,k+1)&!Z-direction
-                  +delta**2._dp*evalRadiator(i,j,k,N_loc,coords,N)&
-                   )/6._dp
+    ! BLACK DOTS (Uneven coordinate sums)
+    do k = 2,N_loc-1
+      do j = 2,N_loc-1
+        do i = 2+mod(k+j+1,2),N_loc-1,2
+          u(i,j,k) =(u(i-1,j,k)+u(i+1,j,k)&!X-direction
+                    +u(i,j-1,k)+u(i,j+1,k)&!Y-direction
+                    +u(i,j,k-1)+u(i,j,k+1)&!Z-direction
+                    +delta**2._dp*evalRadiator(i,j,k,N_loc,coords,N)&
+                     )/6._dp
+        end do
       end do
     end do
+    
+    ! Update walls:
+    call updateComm(u,irank,comm)
+
   end do
-  
-  ! Update walls:
-  call updateComm(u,irank,comm)
   end subroutine Gauss_Seidel_redblack
   
+! ------------------------------------------------------------------------ !
+
+subroutine Jacobi(u,comm,Delta,irank,coords,N,iter)
+  real(dp), dimension(:,:,:), intent(inout) :: u
+  integer,  intent(in) :: comm,irank,coords(3),N,iter
+  real(dp), intent(in) :: delta
+
+  integer :: i,j,k,it
+  integer :: N_loc
+  integer :: ierr
+  real(dp), dimension(:,:,:), allocatable :: u_old
+  
+  N_loc = size(u,1)
+  allocate(u_old(N_loc,N_loc,N_loc))
+  
+  do it = 1,iter  
+    
+    ! Define all points in u_old
+    do k = 2,N_loc-1
+      do j = 2,N_loc-1
+        do i = 2,N_loc-1
+          u_old(i,j,k)=u(i,j,k)
+        end do
+      end do
+    end do
+
+    ! Evaluate all points
+    do k = 2,N_loc-1
+      do j = 2,N_loc-1
+        do i = 2,N_loc-1
+          u(i,j,k) =(u_old(i-1,j,k)+u_old(i+1,j,k)&!X-direction
+                    +u_old(i,j-1,k)+u_old(i,j+1,k)&!Y-direction
+                    +u_old(i,j,k-1)+u_old(i,j,k+1)&!Z-direction
+                    +delta**2._dp*evalRadiator(i,j,k,N_loc,coords,N)&
+                     )/6._dp
+        end do
+      end do
+    end do
+
+    ! Update ghots layers
+    call updateComm(u,irank,comm)
+
+  end do
+end subroutine Jacobi
+
 ! ------------------------------------------------------------------------ !
 
   real(dp) function evalRadiator(i,j,k,N_loc,coords,N)
@@ -514,19 +563,19 @@ program main
     ! u(:,N,:) = 20
   call ApplyBC(1,N,0,coords,irank,uloc,cart_comm)
 
-  !Defining Delta (2 is to define the 2 meters of box length):
   Delta = 2._dp/(N-1._dp)
+  !Defining Delta (2 is to define the 2 meters of box length):
   
   t1 = MPI_Wtime()
-  do i = 1,1000
-    select case (algo)
+  select case (algo)
     case(0)
       ! Calling the Gauss Seidel routine:
-      call Gauss_Seidel_redblack(uloc,cart_comm,Delta,irank,coords,N+2)
+      call Gauss_Seidel_redblack(uloc,cart_comm,Delta,irank,coords,N+2,1000)
+    case(1)
+      call Jacobi(uloc,cart_comm,Delta,irank,coords,N+2,1000)
     case default
       write(*,'(A,I0)') 'Unknown algorithm?? = ',algo
-    end select
-  end do
+  end select
   t2 = MPI_Wtime()-t1  
 
   ! print to terminal
