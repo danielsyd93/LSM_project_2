@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-int N = 10;
+int N;
 
 double*** matrix;
 double* matrixWin;
@@ -143,86 +143,6 @@ void evalSequentually()
     }
 }
 
-double* matrixTo1D()
-{
-    double* matrix1D = (double*)malloc(sizeof(double) * N * N * N);
-
-    int i = 0;
-
-    for(int x = 0; x < N; ++x)
-    {
-        for(int y = 0; y < N; ++y)
-        {
-            for(int z = 0; z < N; ++z)
-            {
-                matrix1D[i++] = matrix[x][y][z];
-            }
-        }
-    }
-
-    return matrix1D;
-}
-
-void printMatrixCommandLine()
-{
-    for(int x = 0; x < N; ++x)
-    {
-        for(int y = 0; y < N; ++y)
-        {
-            for(int z = 0; z < N; ++z)
-            {
-                printf("%.2f\t", matrix[x][y][z]);
-            }
-            printf("\n");
-        }
-        printf("\n\n");
-    }
-}
-
-void printMatrixCommandLineWin()
-{
-    for(int x = 0; x < N; ++x)
-    {
-        for(int y = 0; y < N; ++y)
-        {
-            for(int z = 0; z < N; ++z)
-            {
-                printf("%.2f\t", matrixWin[x*N*N+y*N+z]);
-            }
-            printf("\n");
-        }
-        printf("\n\n");
-    }
-}
-
-void printMinMax()
-{
-    double min = matrix[0][0][0];
-    double max = matrix[0][0][0];
-
-    for(int x = 0; x < N; ++x)
-    {
-        for(int y = 0; y < N; ++y)
-        {
-            for(int z = 0; z < N; ++z)
-            {
-                if(min > matrix[x][y][z])
-                {
-                    min = matrix[x][y][z];
-                }
-
-                if(max < matrix[x][y][z])
-                {
-                    max = matrix[x][y][z];
-                }
-            }
-        }
-    }
-
-    printf("Min: %.2f \t Max: %.2f\n", min, max);
-}
-
-
 int getDiagonal2D(int diagonal, struct coordinates* coordinates)
 {
     int count = 0;
@@ -260,39 +180,6 @@ void wavefrontSeq()
         {
             evalPoint(coordinates[i].x, coordinates[i].y, coordinates[i].z);
         }
-        free(coordinates);
-    }
-}
-
-void wavefrontParallelBcast()
-{
-    int rank;
-    int size;
-
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-
-    for(int diagonal = 3; diagonal <= (N-2)*3; ++diagonal)
-    {
-        struct coordinates* coordinates = (struct coordinates*)malloc(sizeof(struct coordinates)*((diagonal-1)*(diagonal-2)/2));
-
-        int count = getDiagonal2D(diagonal,coordinates);
-
-        for(int i = 0; i < count; ++i)
-        {
-            if(i % size == rank)
-            {
-                double data = evalPoint(coordinates[i].x, coordinates[i].y, coordinates[i].z);
-                MPI_Bcast(&data, 1, MPI_DOUBLE, rank, MPI_COMM_WORLD);
-            }
-            else
-            {
-                double data;
-                MPI_Bcast(&data, 1, MPI_DOUBLE, i % size, MPI_COMM_WORLD);
-                matrix[coordinates[i].x][coordinates[i].y][coordinates[i].z] = data;
-            }
-        }
-
         free(coordinates);
     }
 }
@@ -340,73 +227,6 @@ void wavefrontParallel2DBcast()
         for(int i = rank; i < count; i+=size)
         {
             data[rank][dataCount++] = evalPoint(coordinates[i].x, coordinates[i].y, coordinates[i].z);
-        }
-
-        for(int i = 0; i < size; ++i)
-        {
-            if(i % size == rank)
-            {
-                MPI_Bcast(data[rank], sendCount[rank], MPI_DOUBLE, rank, MPI_COMM_WORLD);
-            }
-            else
-            {
-                MPI_Bcast(data[i % size], sendCount[i%size], MPI_DOUBLE, i % size, MPI_COMM_WORLD);
-            }
-        }
-
-        setToZero(sendCount, size);
-
-        for(int i = 0; i < count; ++i)
-        {
-            matrix[coordinates[i].x][coordinates[i].y][coordinates[i].z] = data[i % size][sendCount[i%size]++];
-        }
-
-        for(int i = 0; i < size; ++i)
-        {
-            free(data[i]);
-        }
-        free(data);
-        free(coordinates);
-    }
-}
-
-void wavefrontParallelHybrid()
-{
-    int rank;
-    int size;
-
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-
-    for(int diagonal = 3; diagonal <= (N-2)*3; ++diagonal)
-    {
-        struct coordinates* coordinates = (struct coordinates*)malloc(sizeof(struct coordinates)*((diagonal-1)*(diagonal-2)/2));
-
-        int count = getDiagonal2D(diagonal,coordinates);
-
-        int sendCount[size];
-
-        setToZero(sendCount, size);
-
-        for(int i = 0; i < count; ++i)
-        {
-           sendCount[i % size] += 1;
-        }
-
-        double** data= (double**)malloc(sizeof(double*)*size);
-
-        for(int i = 0; i < size; ++i)
-        {
-            data[i] = (double*)malloc(sizeof(double)*(sendCount[i % size]));
-        }
-
-        int dataCount = 0;
-
-
-        #pragma omp parallel for
-        for(int i = rank; i < count; i+=size)
-        {
-            data[rank][i/size] = evalPoint(coordinates[i].x, coordinates[i].y, coordinates[i].z);
         }
 
         for(int i = 0; i < size; ++i)
@@ -581,9 +401,6 @@ void matrixFree()
     free(matrix);
 }
 
-void write_vtk(int n, double* u);
-void writeParaviewCSV();
-
 int main(int argc, char *argv [])
 {
     MPI_Init(&argc, &argv);
@@ -604,17 +421,17 @@ int main(int argc, char *argv [])
 
     matrixAllocate(N);
 
-    initMatrix();
-
     double t0;
     double t;
+
+    initMatrix();
 
     if(rank == 0)
     {
         t0 = MPI_Wtime();
     }
 
-    for(int i = 0; i < 100; ++i)
+    for(int i = 0; i < 1000; ++i)
     {
         if(rank == 0)
         {
@@ -637,7 +454,7 @@ int main(int argc, char *argv [])
         t0 = MPI_Wtime();
     }
 
-    for(int i = 0; i < 100; ++i)
+    for(int i = 0; i < 1000; ++i)
     {
         if(rank == 0)
         {
@@ -660,27 +477,7 @@ int main(int argc, char *argv [])
         t0 = MPI_Wtime();
     }
 
-    for(int i = 0; i < 100; ++i)
-    {
-        wavefrontParallelBcast();
-    }
-
-    if(rank == 0)
-    {
-        t = MPI_Wtime() - t0;
-        printf("wavefrontParallelBcast took %.4f seconds\n", t);
-    }
-
-    initMatrix();
-
-    MPI_Barrier(MPI_COMM_WORLD);
-
-    if(rank == 0)
-    {
-        t0 = MPI_Wtime();
-    }
-
-    for(int i = 0; i < 100; ++i)
+    for(int i = 0; i < 1000; ++i)
     {
         wavefrontParallel2DBcast();
     }
@@ -691,8 +488,6 @@ int main(int argc, char *argv [])
         printf("wavefrontParallel2DBcast took %.4f seconds\n", t);
     }
 
-
-    
     matrixFree();
 
     MPI_Win win;
@@ -719,7 +514,7 @@ int main(int argc, char *argv [])
         t0 = MPI_Wtime();
     }
 
-    for(int i = 0; i < 100; ++i)
+    for(int i = 0; i < 1000; ++i)
     {
             wavefrontParallelWin();
     }
@@ -738,7 +533,7 @@ int main(int argc, char *argv [])
 
     MPI_Barrier(MPI_COMM_WORLD);
 
-    for(int i = 0; i < 100; ++i)
+    for(int i = 0; i < 1000; ++i)
     {
             redDotBlackDotWin();
     }
@@ -749,93 +544,7 @@ int main(int argc, char *argv [])
         printf("redDotBlackDotWin took %.4f seconds\n\n", t);
     }
 
-    
-
-
-    //printMinMax();
-
-    //double* matrix1D = matrixTo1D();
-    //write_vtk(N, matrix1D);
-    //free(matrix1D);
-
 
     MPI_Win_free(&win);
     MPI_Finalize();
-}
-
-static int is_little_endian(void) {
-    int num = 1;
-    return (*((char*)&num) == 1);
-}
-
-void write_vtk(int n, double* u) {
-
-    FILE* f_ptr;
-    size_t written;
-    size_t items = n * n * n;
-    size_t i;
-    int b;
-    unsigned char tmp;
-
-    if((f_ptr = fopen("poisson_u.vtk", "w")) == NULL) {
-        perror("No output! fopen()");
-        return;
-    }
-
-    // Write VTK file header
-    fprintf(f_ptr, "# vtk DataFile Version 3.0\n");
-    fprintf(f_ptr, "saved from function write_vtk.\n");
-    fprintf(f_ptr, "BINARY\n");
-    fprintf(f_ptr, "DATASET STRUCTURED_POINTS\n");
-    fprintf(f_ptr, "DIMENSIONS %d %d %d\n", n, n, n);
-    fprintf(f_ptr, "ORIGIN %d %d %d\n", 0, 0, 0);
-    fprintf(f_ptr, "SPACING %d %d %d\n", 1, 1, 1);
-    fprintf(f_ptr, "POINT_DATA %lu\n", items);
-    fprintf(f_ptr, "SCALARS %s %s 1\n", "gray", "double");
-    fprintf(f_ptr, "LOOKUP_TABLE default\n");
-
-    if(is_little_endian()) {
-        // System is little endian, so we need to reverse the byte order.
-        written = 0;
-        for(i = 0; i < items; ++i) {
-            uint64_t crnt = *(uint64_t*)(u + i); // Get double as int
-
-            // Reverse byte order and write to file
-            crnt = (crnt & 0x00000000FFFFFFFF) << 32 | (crnt & 0xFFFFFFFF00000000) >> 32;
-            crnt = (crnt & 0x0000FFFF0000FFFF) << 16 | (crnt & 0xFFFF0000FFFF0000) >> 16;
-            crnt = (crnt & 0x00FF00FF00FF00FF) << 8 | (crnt & 0xFF00FF00FF00FF00) >> 8;
-            written += fwrite(&crnt, sizeof(uint64_t), 1, f_ptr);
-        }
-    }
-    else {
-        // System is big endian, so just dump the data.
-        written = fwrite(u, sizeof(double), items, f_ptr);
-    }
-
-    if(written != items) {
-        fprintf(stderr, "Writing failed:  only %lu of %lu items saved!\n",
-            written, items);
-    }
-
-    fclose(f_ptr);
-}
-
-void writeParaviewCSV()
-{
-    FILE* fpt;
-
-    fpt = fopen("paraview.csv", "w+");
-
-    fprintf(fpt, "x coord,y coord,z coord, scalar\n");
-    for(int x = 0; x < N; ++x)
-    {
-        for(int y = 0; y < N; ++y)
-        {
-            for(int z = 0; z < N; ++z)
-            {
-                fprintf(fpt, "%d,%d,%d,%.2f\n", x, y, z, matrix[x][y][z]);
-            }
-        }
-    }
-    fclose(fpt);
 }
