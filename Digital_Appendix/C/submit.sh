@@ -16,4 +16,4 @@ module load mpi/3.1.3-gcc-8.2.0
 
 mpicc -o main -O2 -ftree-vectorize -march=native main.c
 
-mpirun ./main 1000
+mpirun ./main 1000 
