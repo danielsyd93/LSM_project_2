@@ -180,7 +180,7 @@ contains
   end subroutine write_vtk
 ! -------------------------------------------------------------------------!
 
-  subroutine Gauss_Seidel_redblack(u,comm,delta,irank,coords,N,iter)
+  subroutine Gauss_Seidel_redblack_Hybrid(u,comm,delta,irank,coords,N,iter)
   real(dp), dimension(:,:,:), intent(inout) :: u
   integer,  intent(in) :: comm,irank,coords(3),N,iter
   real(dp), intent(in) :: Delta
@@ -248,10 +248,10 @@ contains
   end do
 
   !$OMP end parallel
-  end subroutine Gauss_Seidel_redblack
+  end subroutine Gauss_Seidel_redblack_Hybrid
 ! -------------------------------------------------------------------------!
 
-  subroutine Gauss_Seidel_redblack_OMP(u,comm,delta,irank,coords,N,iter)
+  subroutine Gauss_Seidel_redblack_Hybrid_star(u,comm,delta,irank,coords,N,iter)
   real(dp), dimension(:,:,:), intent(inout) :: u
   integer,  intent(in) :: comm,irank,coords(3),N,iter
   real(dp), intent(in) :: Delta
@@ -322,7 +322,7 @@ contains
   end do
 
   !$OMP end parallel
-  end subroutine Gauss_Seidel_redblack_OMP
+  end subroutine Gauss_Seidel_redblack_Hybrid_star
   
 ! ------------------------------------------------------------------------ !
   subroutine RB_Eval_bound(u,delta,coords,N,N_loc,col)
@@ -743,13 +743,13 @@ program main
   select case (algo)
     case(0)
       ! Calling the Gauss Seidel routine:
-      call Gauss_Seidel_redblack_OMP(uloc,cart_comm,Delta,irank,&
+      call Gauss_Seidel_redblack_Hybrid(uloc,cart_comm,Delta,irank,&
                                    coords,N+2,1)
     case(1)
       call Jacobi(uloc,cart_comm,Delta,irank,coords,N+2,1000)
     case(2)
       ! Calling the Gauss Seidel routine without boundary calculation:
-      call Gauss_Seidel_redblack(uloc,cart_comm,Delta,irank,&
+      call Gauss_Seidel_redblack_Hybrid_star(uloc,cart_comm,Delta,irank,&
                                    coords,N+2,1000)
     case default
       write(*,'(A,I0)') 'Unknown algorithm?? = ',algo
