@@ -1,0 +1,28 @@
+#!/bin/sh
+#BSUB -n 24
+#BSUB -R "span[block=24]"
+#BSUB -W 00:59
+#BSUB -q hpcintro
+#BSUB -R "rusage[mem=3GB]"
+#BSUB -J profiling
+#BSUB -o HPCOutputs/Output_%J.out
+#BSUB -e HPCOutputs/Error_%J.err
+
+module purge 
+module load gcc/9.3.0-binutils-2.34
+./Analyze.sh
+
+
+for N in 100 200 300 400
+do
+
+for t in 1 2 4 8 16
+do
+
+#for algo in 0 1
+#do
+OMP_NUM_THREADS=$t ./runme $N 1 1 1 1 1
+
+#done
+done
+done
